@@ -1,0 +1,10 @@
+{
+  "name": "Prova voce",
+  "short_name": "Prova voce",
+  "lang": "it",
+  "start_url": "prova-voce.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0A0A0E",
+  "theme_color": "#0A0A0E"
+}

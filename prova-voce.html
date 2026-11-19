@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prova voce">
+<meta name="theme-color" content="#0A0A0E">
+<link rel="manifest" href="prova-voce.webmanifest">
+<title>Prova voce</title>
+<style>
+  :root { --bg: #0A0A0E; --s: #16161C; --s2: #1E1E26; --t: #F5F5F7; --m: #8E8E99; --g: #30D158; --r: #FF453A; --y: #FFD60A; color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); color: var(--t); font: 16px/1.4 -apple-system, system-ui, sans-serif;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 24px); max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  p { margin: 6px 0; } .m { color: var(--m); font-size: 14px; }
+  button { font: inherit; color: inherit; border: 0; border-radius: 14px; padding: 14px; background: var(--s2); font-weight: 700; width: 100%; }
+  .row { display: flex; gap: 8px; margin: 8px 0; } .row > * { flex: 1; }
+  .go { background: var(--g); color: #04120A; } .on { box-shadow: inset 0 0 0 2px var(--g); }
+  .card { background: var(--s); border-radius: 16px; padding: 14px; margin: 10px 0; }
+  .phrase { font-size: 24px; font-weight: 800; }
+  .heard { font-size: 18px; } .read { color: var(--y); font-weight: 800; }
+  .ok { color: var(--g); } .ko { color: var(--r); }
+  #log { font: 12px/1.35 ui-monospace, Menlo, monospace; color: var(--m); white-space: pre-wrap; max-height: 220px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1>Prova voce</h1>
+<p class="m" id="env"></p>
+<div class="card m">
+  1. Apri questa pagina in <b>Safari</b> e fai le frasi con «Un tocco».<br>
+  2. Prova «Sempre in ascolto»: di' le frasi una dopo l'altra senza toccare.<br>
+  3. Mentre ascolta, tocca «Bip»: si sente?<br>
+  4. Condividi → <b>Aggiungi alla schermata Home</b>, apri da lì e rifai 1–3.<br>
+  5. Chiudi e riapri: richiede il permesso del microfono? Segnalo nelle note.<br>
+  6. «Copia risultati» e incolla il testo a Claude.
+</div>
+<div class="card">
+  <p class="m">Frase <span id="pn"></span> di <span id="pt"></span> — dilla così:</p>
+  <p class="phrase" id="phrase"></p>
+  <p class="heard" id="heard">&nbsp;</p>
+  <p class="read" id="read">&nbsp;</p>
+  <div class="row"><button id="yes">✓ Giusto</button><button id="no">✗ Sbagliato</button></div>
+  <p class="m" id="tally"></p>
+</div>
+<div class="row"><button class="go" id="tap">Un tocco</button><button id="always">Sempre in ascolto</button></div>
+<div class="row"><button id="stop">Ferma</button><button id="beep">Bip</button></div>
+<div class="card"><p class="m">Note (es. «chiede il permesso ogni volta»):</p><textarea id="notes" rows="3" style="width:100%;background:var(--bg);color:var(--t);border:1px solid #2A2A33;border-radius:10px;padding:8px;font:inherit"></textarea></div>
+<div class="row"><button id="copy">Copia risultati</button></div>
+<div class="card"><div id="log"></div></div>
+<script src="js/board.js"></script>
+<script src="js/parse.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const PHRASES = ['triplo venti, cinque, doppio sedici', 'venti, venti, venti', 'triplo diciannove, sette, doppio otto',
+    'centro, venticinque, fuori', 'doppio dieci', 'sei, sei, sei', 'triplo venti, triplo venti, triplo venti',
+    'diciotto, uno, quattro', 'tripla diciassette, tre, doppia dodici', 'mezzo centro, venti, uno',
+    'quattordici, nove, dodici', 'doppio sedici, doppio otto', 'undici, quindici, dieci', 'fuori, fuori, venti',
+    'triplo tredici, sedici, doppio quattro', 'annulla', 'venticinque, cinque, cinque', 'due, diciannove, tredici',
+    'triplo diciotto, otto, doppio venti', 'bull'];
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mode = navigator.standalone || matchMedia('(display-mode: standalone)').matches ? 'Home' : 'Safari';
+  const t0 = Date.now(), logs = [], res = [];
+  let i = 0, rec = null, want = false, cont = false, restarts = 0, last = null, ac = null;
+  $('env').textContent = 'Aperta da: ' + mode + ' · riconoscimento: ' + (SR ? 'sì' : 'NO');
+  function log(s) { const l = ((Date.now() - t0) / 1000).toFixed(1) + 's ' + s; logs.push(l); $('log').textContent = logs.slice(-40).join('\n'); }
+  function show() {
+    $('pn').textContent = i + 1; $('pt').textContent = PHRASES.length; $('phrase').textContent = PHRASES[i];
+    const ok = res.filter((r) => r.ok).length;
+    $('tally').textContent = res.length ? `${ok} giuste su ${res.length}` : '';
+  }
+  function reading(alts) {
+    if (!window.D || !D.parse) return '';
+    const r = D.parse.choose(alts, { need: 3, ends: () => -1 });
+    if (r.kind === 'cmd') return 'comando: ' + r.cmd;
+    if (r.darts) return (r.kind === 'ok' ? '' : '(a metà) ') + r.darts.map(D.board.label).join(' · ');
+    if (r.options) return 'dubbio: ' + r.options.map((o) => o.map(D.board.label).join(' ')).join(' / ');
+    return 'non capito';
+  }
+  function make() {
+    const r = new SR();
+    r.lang = 'it-IT'; r.interimResults = false; r.maxAlternatives = 5; r.continuous = cont;
+    ['start', 'audiostart', 'speechstart', 'speechend', 'audioend'].forEach((ev) => r.addEventListener(ev, () => log(ev)));
+    r.onresult = (e) => {
+      for (let k = e.resultIndex; k < e.results.length; k++) {
+        if (!e.results[k].isFinal) continue;
+        const alts = []; for (let j = 0; j < e.results[k].length; j++) alts.push(e.results[k][j].transcript);
+        last = { said: PHRASES[i], alts: alts, read: reading(alts) };
+        $('heard').textContent = '«' + alts.join('» / «') + '»';
+        $('read').textContent = last.read || ' ';
+        log('risultato: ' + alts.join(' | '));
+      }
+    };
+    r.onerror = (e) => log('errore: ' + e.error);
+    r.onend = () => {
+      log('end'); rec = null;
+      if (want && cont) {
+        try { rec = make(); rec.start(); restarts++; log('ripartito da solo (' + restarts + ')'); }
+        catch (err) { log('NON riparte da solo: ' + err.message); want = false; paint(); }
+      } else { want = false; paint(); }
+    };
+    return r;
+  }
+  function start(c) {
+    if (!SR) { log('riconoscimento non disponibile'); return; }
+    stop(); cont = c; want = true;
+    try { rec = make(); rec.start(); log('avvio ' + (c ? 'continuo' : 'un tocco')); } catch (e) { log('avvio fallito: ' + e.message); want = false; }
+    paint();
+  }
+  function stop() { want = false; if (rec) { try { rec.abort(); } catch (e) { /* già fermo */ } rec = null; } paint(); }
+  function paint() { $('tap').classList.toggle('on', want && !cont); $('always').classList.toggle('on', want && cont); }
+  function mark(ok) {
+    res.push({ said: PHRASES[i], heard: last ? last.alts : [], read: last ? last.read : '', ok: ok, mode: mode, cont: cont });
+    last = null; i = (i + 1) % PHRASES.length; $('heard').innerHTML = '&nbsp;'; $('read').innerHTML = '&nbsp;'; show();
+  }
+  function beep() {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!ac) ac = new C();
+    if (ac.state === 'suspended') ac.resume();
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = 1320; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.3, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.2);
+    log('bip (ascolto ' + (want ? 'acceso' : 'spento') + ')');
+  }
+  async function copy() {
+    const ok = res.filter((r) => r.ok).length;
+    const txt = ['PROVA VOCE · ' + new Date().toLocaleString('it-IT') + ' · ' + navigator.userAgent,
+      'Giuste: ' + ok + ' su ' + res.length + ' · ripartenze da sole: ' + restarts,
+      'Note: ' + $('notes').value, '',
+      ...res.map((r) => (r.ok ? '✓ ' : '✗ ') + `[${r.mode}${r.cont ? ', continuo' : ''}] «${r.said}» → ${r.heard.join(' | ')} → ${r.read}`),
+      '', 'Registro:', ...logs].join('\n');
+    try { await navigator.clipboard.writeText(txt); log('copiato'); }
+    catch (e) { try { await navigator.share({ text: txt }); } catch (e2) { log('copia non riuscita'); } }
+  }
+  $('tap').onclick = () => start(false);
+  $('always').onclick = () => start(true);
+  $('stop').onclick = stop;
+  $('beep').onclick = beep;
+  $('yes').onclick = () => mark(true);
+  $('no').onclick = () => mark(false);
+  $('copy').onclick = copy;
+  show(); log('pronta · ' + mode);
+})();
+</script>
+</body>
+</html>
