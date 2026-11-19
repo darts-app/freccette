@@ -216,6 +216,9 @@ body.v-partita .app { height: 100%; gap: 0; padding-bottom: 0; }
 .pr.on .pip i.f { background: var(--accent); } .pr.on .st b { color: var(--text); }
 .pr.on .last .d { background: var(--surface-3); }
 .prs.n3 .pr, .prs.n4 .pr { padding: 8px 12px; row-gap: 2px; } .prs.n3 .sc, .prs.n4 .sc { font-size: 34px; } .prs.n3 .sc.bust, .prs.n4 .sc.bust { font-size: 28px; }
+/* tastiera aperta: righe un po' più basse, così il punteggio di chi sta sotto resta in vista */
+.prs.kp { gap: 6px; margin-top: 6px; } .prs.kp .pr { padding: 8px 13px; row-gap: 1px; } .prs.kp .sc { font-size: 44px; } .prs.kp .sc.bust { font-size: 34px; }
+.prs.kp.n3 .sc, .prs.kp.n4 .sc { font-size: 32px; }
 .micwrap.sm { gap: 10px; min-height: 110px; } .micwrap.sm .mic { width: 76px; height: 76px; box-shadow: 0 0 0 8px var(--soft); } .micwrap.sm .mic svg.i { width: 30px; height: 30px; }
 .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
 /* barra del turno: bordo verde come il riquadro di chi tira, totale a destra */
@@ -248,26 +251,28 @@ body.v-partita .app { height: 100%; gap: 0; padding-bottom: 0; }
 .pfoot .btn1 svg.i { stroke-width: 2.4; width: 18px; height: 18px; }
 /* tastiera che sale da sotto */
 .kpad { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; max-width: 480px; margin: 0 auto;
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 14px 14px calc(env(safe-area-inset-bottom) + 14px);
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 10px 12px calc(env(safe-area-inset-bottom) + 8px);
   background: #17171F; border-radius: 26px 26px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.5);
   transform: translateY(105%); transition: transform .25s ease; }
 .kpad.open { transform: none; }
-/* in cima alla tastiera: chi tira, quanto resta, chiusura e tiri del turno (visibili anche con 4 giocatori) */
-.khead { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; padding: 0 4px; }
-.khead b { font-weight: 700; color: var(--muted); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.khead span { font-size: 26px; font-weight: 800; }
-.khead span.bust { color: var(--red); font-size: 20px; }
-.khead em { font-style: normal; color: var(--gold); font-weight: 800; margin-left: auto; white-space: nowrap; }
-.khead em.need { color: var(--faint); font-weight: 600; font-size: 13px; }
-.kslots { grid-column: 1 / -1; display: flex; gap: 8px; margin-bottom: 4px; }
-.kslots .slot { flex: 1; max-width: none; height: 44px; font-size: 20px; background: #22222C; }
+/* in cima alla tastiera, in una riga sola: chi tira, quanto resta, chiusura e i 3 tiri del turno (0.5.2: tastiera più bassa) */
+.khead { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 0 2px 2px; }
+.kwho { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+.kwho b { font-size: 12px; font-weight: 700; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kwho span { font-size: 24px; font-weight: 800; }
+.kwho span.bust { color: var(--red); font-size: 18px; }
+.kwho em { font-style: normal; font-size: 12px; color: var(--gold); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwho em.need { color: var(--faint); font-weight: 600; }
+.kwho em:empty { display: none; }
+.kslots { flex: 0 0 62%; display: flex; gap: 6px; }
+.kslots .slot { flex: 1; max-width: none; height: 42px; font-size: 18px; background: #22222C; }
 .kslots .slot.f { background: #2C2C38; }
-.key { height: 48px; border-radius: 12px; background: #22222C; font-size: 19px; font-weight: 700; }
+.key { height: 42px; border-radius: 11px; background: #22222C; font-size: 19px; font-weight: 700; }
 .key:active { background: var(--surface-2); }
 .key.m { color: var(--gold); }
 .key.m.on { background: var(--gold); color: #1A1400; }
-.key.close { grid-column: span 2; height: 44px; background: none; color: var(--muted); font-size: 15px; font-weight: 600; }
-.key.bk { grid-column: span 3; height: 44px; display: grid; place-items: center; background: #2C2C38; }
+.key.close { grid-column: span 2; height: 40px; background: none; color: var(--muted); font-size: 15px; font-weight: 600; }
+.key.bk { grid-column: span 3; height: 40px; display: grid; place-items: center; background: #2C2C38; }
 .key.bk.wide { grid-column: 1 / -1; }
 .key.bk svg.i { width: 24px; height: 24px; }
 

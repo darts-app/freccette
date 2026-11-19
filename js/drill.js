@@ -88,22 +88,24 @@
       onError: (err) => { if (err === 'not-allowed' || err === 'service-not-allowed') { vstate = 'denied'; A.render(); } },
     });
   }
-  function read(alts) {
+  let taken = {};              // frasi già segnate con la risposta veloce: la frase finale si ignora
+  function read(alts, more) {
     const x = dr();
     return D.parse.choose(alts, {
       need: 3 - pending.length,
       ends: (c) => { const t = x.turn(st, pending.concat(c)); return t.endAt < 0 ? -1 : t.endAt - pending.length; },
       busts: (c) => x.turn(st, pending.concat(c)).bust,
-    });
+    }, more);
   }
-  function fast(alts) {
-    if (A.view !== 'allenamento' || !s || s.done || confirmT) return false;
+  function fast(alts, key, part) {
+    if (part || taken[key] || A.view !== 'allenamento' || !s || s.done || confirmT) return false;
     if (read(alts).kind !== 'ok') return false;
-    heard(alts); return true;
+    heard(alts); taken[key] = 1; return 'full';
   }
-  function heard(alts) {
+  function heard(alts, key, more) {
+    if (key && taken[key]) return;
     if (A.view !== 'allenamento' || !s || s.done || confirmT) return;
-    const r = read(alts);
+    const r = read(alts, more);
     if (r.kind === 'cmd') { D.voice.beep(true); acts.dback(); return; }
     if (r.kind === 'ok' || r.kind === 'partial') { msg = '«' + (alts[0] || '') + '»'; D.voice.beep(true); addDarts(r.darts); return; }
     if (r.kind === 'ambiguous') {
@@ -175,7 +177,7 @@
       ${tbar}<p class="status">${confirmT ? '✓' : esc(msg) || '&nbsp;'}</p>
       <div class="micwrap">${voiceOk ? `<button class="mic ${vstate}" data-act="dmic" aria-label="Parla">${D.icon('mic')}</button>` : ''}<p class="hint">${state}</p></div>
       <div class="pfoot"><button class="btn2" data-act="dpad">${D.icon('kbd')}Tastiera</button><button class="btn2" data-act="dback" ${can ? '' : 'disabled'}>${D.icon('bksp')}Indietro</button></div>
-      <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(s.name)}</b><span class="num">${v.big}</span><em>${v.sub ? esc(v.sub) : ''}</em></div><div class="kslots">${slots}</div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="dback" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="dpad">Chiudi</button>' : ''}</div>`;
+      <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><span class="kwho"><b>${esc(s.name)}</b><span class="num">${v.big}</span><em>${v.sub ? esc(v.sub) : ''}</em></span><div class="kslots">${slots}</div></div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="dback" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="dpad">Chiudi</button>' : ''}</div>`;
   };
 
   /* ---------- Risultato ---------- */

@@ -114,7 +114,20 @@
 
   const key = (ds) => ds.map(B.label).join(' ');
   // alts = ipotesi del riconoscitore; ctx = { need: tiri mancanti, ends(tiri) → indice di fine turno o -1, busts(tiri) → è sballo? (facoltativo) }
-  function choose(alts, ctx) {
+  // more = testi provvisori della stessa frase (prima che Safari li «aggiusti»): «20 e 5» provvisorio, «25» finale.
+  // Si usano solo se la frase finale non dà un turno completo: vince un turno completo o un turno a metà più lungo.
+  function choose(alts, ctx, more) {
+    const r = choose1(alts, ctx);
+    if (!more || !more.length || r.kind === 'ok' || r.kind === 'cmd' || r.kind === 'ambiguous') return r;
+    let best = r;
+    for (const t of more) {
+      const r2 = choose1([t], ctx);
+      if (r2.kind === 'ok' && !r2.darts.pen) return r2;
+      if (r2.kind === 'partial' && (best.kind === 'none' || r2.darts.length > best.darts.length)) best = r2;
+    }
+    return best;
+  }
+  function choose1(alts, ctx) {
     let partial = null, partialTk = null, amb = null;
     const isFull = (c) => { if (c.length > ctx.need) return false; const e = ctx.ends(c); return e === c.length - 1 || (e === -1 && c.length === ctx.need); };
     // prima le ipotesi con meno parole sconosciute («Proventi…», «Vitro 20…» vanno in fondo); a parità, l'ordine di Safari
@@ -143,7 +156,8 @@
     if (!partial) return { kind: 'none' };
     // turno a metà con un numero in cifre («18 14»): Safari ha attaccato «uno, quattro». Scelta fatta:
     // si divide l'ultimo numero che completa il turno, senza chiedere (non dopo doppio/triplo).
-    for (let j = partialTk.length - 1; j >= 0; j--) {
+    // Solo con almeno 2 tiri detti: «13» da solo resta 13 (prima diventava 1 e 3 se mancavano 2 tiri).
+    if (partial.length >= 2) for (let j = partialTk.length - 1; j >= 0; j--) {
       const x = partialTk[j];
       if (!x.sp || (j > 0 && partialTk[j - 1].t === 'm')) continue;
       const tk2 = partialTk.slice(0, j).concat([{ t: 'n', v: x.sp[0] }, { t: 'n', v: x.sp[1] }], partialTk.slice(j + 1));

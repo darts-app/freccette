@@ -145,6 +145,18 @@
   T.eq(P('111', ctx(3, 3)), 'ok:1 1', 'manca 3: «111» = 1, 1 → sballo');
   T.eq(P('123'), 'ok:1 2 3', '«123» = 1, 2, 3');
   T.eq(P('555'), 'ok:5 5 5', '«555» = 5, 5, 5');
+  // terza prova vera (2026-11-19): «13» con 2 tiri da fare diventava 1 e 3; «20 e 5» diventava 25
+  T.group('voce vera iPhone 3');
+  T.eq(P('13', ctx(2)), 'partial:13', 'mancano 2 tiri: «13» resta 13');
+  T.eq(P('18', ctx(2)), 'partial:18', 'mancano 2 tiri: «18» resta 18');
+  T.eq(P('13', ctx(3)), 'partial:13', 'mancano 3 tiri: «13» resta 13');
+  T.eq(P('18 14'), 'ok:18 1 4', '«18 14» con 3 tiri: si divide ancora (2 tiri detti)');
+  const Q = (alts, more, c) => { const r = D.parse.choose(alts, c || ctx(3), more); return r.kind + (r.darts ? ':' + S(r.darts) : ''); };
+  T.eq(Q(['25'], ['20', '20 e 5'], ctx(2)), 'ok:20 5', 'finale «25», provvisorio «20 e 5», mancano 2 = 20 e 5');
+  T.eq(Q(['25'], ['20', '20 e 5']), 'partial:20 5', 'finale «25», provvisorio «20 e 5», mancano 3 = 20 e 5');
+  T.eq(Q(['25'], ['venti', '25']), 'partial:25', '«venticinque» detto di fila resta 25');
+  T.eq(Q(['25'], []), 'partial:25', 'senza provvisori: 25');
+  T.eq(Q(['triplo 20 5 doppio 16'], ['triplo 20']), 'ok:T20 5 D16', 'il finale completo vince sempre');
   T.eq(P('111', ctx(2)), 'ambiguous:1 11|11 1', 'mancano 2 tiri: «111» chiede');
   T.eq(P(['111', '1 1 1']), 'ok:1 1 1', '«111 | 1 1 1»');
 })();

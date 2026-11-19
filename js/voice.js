@@ -4,9 +4,10 @@
   const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
   let rec = null, want = false, mode = 'tap', h = {}, denied = false, startedAt = 0;
   // Risposta veloce: Safari manda il testo anche mentre parli (risultati «provvisori»). Se un testo provvisorio
-  // resta uguale per FAST_MS e h.fast(alts) lo accetta (turno completo), i tiri si segnano subito e la frase finale si ignora.
-  const FAST_MS = 350;
-  let sess = 0, taken = {}, fastT = 0, fastKey = '', fastText = '';
+  // resta uguale per FAST_MS si prova a segnarlo come turno completo; se resta uguale per PART_MS anche un tiro solo.
+  // h.fast(alts, key, part) segna i tiri e dice 'full' se il turno è pieno. La frase finale (stessa key) può correggerli.
+  const FAST_MS = 350, PART_MS = 650;
+  let sess = 0, fastT = 0, partT = 0, fastKey = '', fastText = '', hist = {};
   const emit = (s) => { if (h.onState) h.onState(s); };
   function supported() { return !!SR; }
   function make() {
@@ -17,10 +18,11 @@
         const res = e.results[i], key = id + ':' + i;
         const alts = [];
         for (let j = 0; j < res.length; j++) alts.push(res[j].transcript);
-        if (!res.isFinal) { if (h.fast && !taken[key]) interim(alts, key); continue; }
-        if (fastKey === key) { clearTimeout(fastT); fastKey = ''; }
-        if (taken[key]) continue;                            // già segnato con la risposta veloce
-        if (h.onResult) h.onResult(alts);
+        if (!res.isFinal) { if (h.fast) interim(alts, key); continue; }
+        if (fastKey === key) { clearTimeout(fastT); clearTimeout(partT); fastKey = ''; }
+        const more = hist[key] || [];
+        delete hist[key];
+        if (h.onResult) h.onResult(alts, key, more);
       }
     };
     r.onerror = (e) => {
@@ -41,15 +43,18 @@
   function interim(alts, key) {
     const text = (alts[0] || '').trim();
     if (!text || (key === fastKey && text === fastText)) return;
-    clearTimeout(fastT); fastKey = key; fastText = text;
-    fastT = setTimeout(() => {
-      fastKey = '';
-      if (taken[key] || !h.fast || !h.fast(alts)) return;
-      taken[key] = true;
-      if (mode === 'tap') stop();                            // un tocco: il microfono si libera subito
-    }, FAST_MS);
+    const hk = hist[key] || (hist[key] = []);
+    if (hk.indexOf(text) < 0) hk.push(text);
+    clearTimeout(fastT); clearTimeout(partT); fastKey = key; fastText = text;
+    const go = (part) => {
+      if (fastKey !== key || fastText !== text || !h.fast) return;
+      const r = h.fast(alts, key, part);
+      if (r === 'full') { fastKey = ''; clearTimeout(partT); if (mode === 'tap') stop(); }   // un tocco: il microfono si libera subito
+    };
+    fastT = setTimeout(() => go(false), FAST_MS);
+    partT = setTimeout(() => go(true), PART_MS);
   }
-  // opts = { mode: 'tap'|'always', onResult(alts), fast(alts) → true se ha segnato i tiri (facoltativo), onState(s), onError(code) }
+  // opts = { mode: 'tap'|'always', onResult(alts, key, provvisori), fast(alts, key, part) → 'full'|true|false (facoltativo), onState(s), onError(code) }
   function start(opts) {
     h = opts; mode = opts.mode || 'tap';
     if (!SR) { emit('unsupported'); return false; }
@@ -58,7 +63,7 @@
     try { rec = make(); rec.start(); startedAt = Date.now(); emit('listening'); return true; } catch (e) { rec = null; emit('paused'); return false; }
   }
   function stop() {
-    want = false; clearTimeout(fastT); fastKey = '';
+    want = false; clearTimeout(fastT); clearTimeout(partT); fastKey = ''; hist = {};
     if (rec) { const r = rec; rec = null; try { r.abort(); } catch (e) { /* già fermo */ } }
     emit('idle');
   }

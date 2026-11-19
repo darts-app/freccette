@@ -9,6 +9,10 @@
   let mult = 1;                // tastiera: 1, 2 (D) o 3 (T) per il prossimo numero
   let confirmT = 0, botT = 0, busy = false, msg = '', vstate = 'idle', opts = null, lock = null;
   let fixing = false;          // «Correggi turno»: l'ultimo turno è riaperto e aspetta una modifica o «Conferma»
+  // voce in diretta: uKey = frase che sta riempiendo il turno, uN = quanti tiri di «pending» vengono da lei
+  // (la frase che continua o si corregge li sostituisce); gone = frasi chiuse (turno registrato o cambiato a mano)
+  let uKey = '', uN = 0, gone = {};
+  const unbind = () => { if (uKey) gone[uKey] = 1; uKey = ''; uN = 0; };
   const num = (x) => String(x).replace('.', ',');
 
   function refresh() { m = A.data.matches.find((x) => x.id === A.sel); st = G.replay(m.cfg, m.turns); }
@@ -22,7 +26,7 @@
     open(mt.id);
   }
   function open(id) {
-    clearT(); A.sel = id; pending = []; mult = 1; msg = ''; busy = false; fixing = false;
+    clearT(); A.sel = id; pending = []; mult = 1; msg = ''; busy = false; fixing = false; unbind();
     A.view = 'partita'; keepAwake(); next();
   }
   // dopo ogni cambio: fine partita, turno del bot oppure turno di una persona
@@ -48,8 +52,12 @@
   }
   function addDarts(ds) {
     if (busy || st.done) return;
+    unbind();
+    setPending(pending.concat(ds));
+  }
+  function setPending(ds) {
     clearTimeout(confirmT); confirmT = 0; fixing = false;
-    pending = pending.concat(ds).slice(0, 3);
+    pending = ds.slice(0, 3);
     const e = G.turnEnd(st.rem[st.cur], pending, m.cfg.out, opened());
     if (e >= 0) pending = pending.slice(0, e + 1);
     if (e >= 0 || pending.length === 3) confirmT = setTimeout(commit, CONFIRM_MS);
@@ -58,6 +66,7 @@
   function commit() {
     clearTimeout(confirmT); confirmT = 0;
     if (!pending.length) return;
+    unbind();
     const p = m.cfg.players[st.cur], legs = st.legs.length;
     m.turns.push({ darts: pending });
     pending = []; mult = 1; msg = '';
@@ -84,39 +93,51 @@
       onError: (err) => { if (err === 'not-allowed' || err === 'service-not-allowed') { vstate = 'denied'; A.render(); } },
     });
   }
-  function read(alts) {
-    const full = confirmT !== 0, base = st.rem[st.cur], op = opened();
-    const pend = fixing ? [] : pending;                     // turno riaperto: quello che dici lo sostituisce tutto
+  function read(alts, pend, more) {
+    const base = st.rem[st.cur], op = opened();
     return D.parse.choose(alts, {
-      need: full ? 0 : 3 - pend.length,
+      need: 3 - pend.length,
       ends: (c) => { const e = G.turnEnd(base, pend.concat(c), m.cfg.out, op); return e < 0 ? -1 : e - pend.length; },
       busts: (c) => G.applyTurn(base, pend.concat(c), m.cfg.out, op).bust,
-    });
+    }, more);
   }
-  // risposta veloce: si segna subito solo un turno completo e sicuro (niente dubbi, niente comandi)
-  function fast(alts) {
-    if (A.view !== 'partita' || busy || st.done || confirmT) return false;
-    if (read(alts).kind !== 'ok') return false;
-    heard(alts); return true;
-  }
-  function heard(alts) {
-    if (A.view !== 'partita' || busy || st.done) return;
-    const full = confirmT !== 0;
-    const r = read(alts);
+  // risposta veloce (testo provvisorio fermo): part = false solo turno completo, part = true anche tiri a metà
+  function fast(alts, key, part) { return hear(alts, key, false, part, null); }
+  function heard(alts, key, more) { hear(alts, key, true, true, more); }
+  function hear(alts, key, final, part, more) {
+    if (A.view !== 'partita' || busy || st.done || (key && gone[key])) return false;
+    const mine = !!key && key === uKey;
+    if (confirmT && !mine && !final) return false;
+    // la frase che sta già riempiendo il turno si rilegge da capo, dai tiri che c'erano prima di lei
+    const pend = mine ? pending.slice(0, pending.length - uN) : fixing ? [] : pending;
+    const r = read(alts, pend, more);
     if (r.kind === 'cmd') {
-      D.voice.beep(true);
+      if (!final) return false;
+      D.voice.beep(true); unbind();
       if (r.cmd === 'undo') acts.fix(); else { clearTimeout(confirmT); confirmT = 0; pending = []; fixing = false; A.render(); }
-      return;
+      return true;
     }
-    if (full) return;                                        // turno già pieno: si aspetta la conferma
-    if (fixing && r.kind !== 'none') { pending = []; fixing = false; }
-    if (r.kind === 'ok' || r.kind === 'partial') { msg = '«' + (alts[0] || '') + '»'; D.voice.beep(true); addDarts(r.darts); return; }
+    if (!final && !(r.kind === 'ok' || (part && r.kind === 'partial'))) return false;
+    if (confirmT && !mine) return false;                   // turno già pieno: si aspetta la conferma
+    if (r.kind === 'ok' || r.kind === 'partial') {
+      const nd = pend.concat(r.darts), same = mine && nd.map(B.label).join() === pending.map(B.label).join();
+      msg = '«' + (alts[0] || '') + '»';
+      if (same) { if (final) unbind(); A.render(); return confirmT ? 'full' : true; }
+      D.voice.beep(true);
+      // frase ancora aperta: resta legata ai suoi tiri; frase finale: i tiri restano e la frase si chiude
+      if (key && !final) { if (uKey && uKey !== key) gone[uKey] = 1; uKey = key; uN = r.darts.length; } else unbind();
+      setPending(nd);
+      return confirmT ? 'full' : true;
+    }
+    if (mine) { if (final) unbind(); return false; }        // frase già segnata in parte: si tiene quello che c'è
     if (r.kind === 'ambiguous') {
+      if (fixing) { pending = []; fixing = false; }
       D.voice.beep(true); opts = r.options;
       A.sheet('<b class="stitle">Cosa hai detto?</b>' + r.options.map((o, i) => `<button class="btn ghost" data-act="pick" data-i="${i}">${o.map(B.label).join(' · ')}</button>`).join(''));
-      return;
+      return false;
     }
     D.voice.beep(false); msg = 'Non ho capito: «' + (alts[0] || '') + '»'; A.render();
+    return false;
   }
   acts.pick = (el) => { const o = opts[+el.dataset.i]; A.closeSheet(); addDarts(o); };
   acts.mic = () => {
@@ -145,12 +166,12 @@
   acts.slot = (el) => {
     const i = +el.dataset.i;
     if (busy || i >= pending.length) return;
-    clearTimeout(confirmT); confirmT = 0; fixing = false; pending = pending.slice(0, i); A.render();
+    unbind(); clearTimeout(confirmT); confirmT = 0; fixing = false; pending = pending.slice(0, i); A.render();
   };
   // «Correggi turno»: con tiri in corso li cancella; se no riapre l'ultimo turno di una persona (anche dopo i bot)
   acts.fix = () => {
     if (busy) return;
-    clearTimeout(confirmT); confirmT = 0; mult = 1; msg = '';
+    unbind(); clearTimeout(confirmT); confirmT = 0; mult = 1; msg = '';
     if (pending.length && !fixing) { pending = []; A.render(); return; }
     fixing = false; pending = [];
     let back = null;
@@ -167,7 +188,7 @@
   // ⌫ Indietro: ogni tocco cancella un tiro; a turno vuoto riapre l'ultimo turno di una persona senza il suo ultimo tiro
   acts.back = () => {
     if (busy) return;
-    clearTimeout(confirmT); confirmT = 0; mult = 1; msg = '';
+    unbind(); clearTimeout(confirmT); confirmT = 0; mult = 1; msg = '';
     if (pending.length) { pending = pending.slice(0, -1); fixing = false; A.render(); return; }
     fixing = false;
     let back = null;
@@ -232,7 +253,8 @@
       // set e leg sempre in vista (senza set: «Set –»)
       const pp = (c.sets ? pips('Set', st.setsWon[i], G.setsToWin(c)) : '<span class="pip">Set <em>–</em></span>') + pips('Leg', st.legsWon[i], G.legsToWin(c));
       const lt = lastOf(i);
-      const last = on && hint ? `<span class="co ${!openNow ? 'need' : ''}">${hint}</span>`
+      // chi tira: solo la chiusura (il suo turno precedente confonderebbe); gli altri: il loro ultimo turno
+      const last = on ? (hint ? `<span class="co ${!openNow ? 'need' : ''}">${hint}</span>` : '')
         : lt ? `<span class="lbl">${P >= 3 ? 'ultimo' : 'ultimo turno'}</span>${lt.darts.map((d) => `<span class="d">${B.label(d)}</span>`).join('')}<b>${lt.bust ? 'sballo' : '= ' + (lt.before - lt.after)}</b>` : '';
       return `<div class="pr ${on ? 'on' : ''}"><span class="nm">${A.avatar(p, 'xs')}<span class="nmt">${esc(p.name)}</span>${on ? '<span class="dot"></span>' : ''}</span><span class="pips">${pp}</span>
         <b class="sc num ${on && bust ? 'bust' : ''}">${sc}</b><span class="st">media <b class="num">${num(D.stats.matchAvg(st, i) || '–')}</b>${P >= 3 ? ' · ' : '<br>'}frecce <b class="num">${darts}</b></span>
@@ -260,11 +282,11 @@
       : `<button class="btn2" data-act="back" ${canFix ? '' : 'disabled'}>${D.icon('bksp')}Indietro</button>`;
     return `<header class="ptop"><button class="x" data-act="exit">‹ Esci</button><div class="mid"><b>${where}</b><span>${A.rules(c, true)}</span></div>
         <button class="vbtn" data-act="vmode" aria-label="Cambia modo della voce">${D.icon('mic')}${always ? 'Sempre' : 'Un tocco'}</button></header>
-      <div class="prs n${P}">${rows}</div>
+      <div class="prs n${P} ${padOpen ? 'kp' : ''}">${rows}</div>
       ${tbar}<p class="status">${status || '&nbsp;'}</p>
       <div class="micwrap ${P >= 3 ? 'sm' : ''}">${voiceOk ? `<button class="mic ${vstate}" data-act="mic" aria-label="Parla">${D.icon('mic')}</button>` : ''}<p class="hint">${state}</p></div>
       <div class="pfoot">${human ? `<button class="btn2" data-act="pad">${D.icon('kbd')}Tastiera</button>` : '<span></span>'}${fixBtn}</div>
-      <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(who().name)}</b><span class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</span><em class="${!openNow ? 'need' : ''}">${hint}</em></div><div class="kslots">${slots}</div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="back" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="pad">Chiudi</button>' : ''}</div>`;
+      <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><span class="kwho"><b>${esc(who().name)}</b><span class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</span><em class="${!openNow ? 'need' : ''}">${hint}</em></span><div class="kslots">${slots}</div></div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="back" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="pad">Chiudi</button>' : ''}</div>`;
   };
   D.views.fine = function () {
     const c = m.cfg, w = c.players[st.winner];
