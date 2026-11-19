@@ -1,7 +1,7 @@
 /* App freccette: dati, schermate, menu, finestrelle, backup, aggiornamenti. */
 (function (D) {
   'use strict';
-  const VERSION = '0.1.2';                                  // tenere uguale a VERSION in sw.js
+  const VERSION = '0.2.0';                                  // tenere uguale a VERSION in sw.js
   const $ = (id) => document.getElementById(id);
   const root = $('app'), body = document.body;
   const ls = (() => { try { return window.localStorage; } catch (e) { return { getItem() { return null; }, setItem() {} }; } })();
@@ -45,6 +45,34 @@
     if (/^bot\d$/.test(id)) return A.botPlayer(D.bot.level(+id.slice(3)));
     return A.data.players.find((p) => p.id === id) || null;
   };
+
+  // Icone (tratto, colore del testo)
+  const PATH = {
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+    dart: '<path d="M4 20l9-9"/><path d="M13 11l2-6 4 4-6 2z"/><path d="M4 20l-1-3M4 20l3 1"/>',
+    trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/>',
+    crown: '<path d="M4 8l4 4 4-7 4 7 4-4-2 11H6z"/>',
+    robot: '<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
+    undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+    kbd: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
+    replay: '<path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v4h4"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    play: '<path d="M8 5v14l11-7z"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  };
+  D.icon = (k, cls) => `<svg class="i ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${PATH[k]}</svg>`;
+  // Tondo del giocatore: un colore fisso per persona (dall'ordine di creazione), iniziale; i bot hanno il robot grigio
+  A.tint = (p) => {
+    if (p.bot) return 'ab';
+    let i = A.data.players.findIndex((x) => x.id === p.id);
+    if (i < 0) { i = 0; for (const ch of String(p.id)) i = (i * 31 + ch.charCodeAt(0)) >>> 0; }
+    return 'a' + (i % 4 + 1);
+  };
+  A.avatar = (p, size) => `<span class="av ${size || ''} ${A.tint(p)}">${p.bot ? D.icon('robot') : esc(String(p.name || '?').trim().charAt(0).toUpperCase())}</span>`;
+  // regole in breve: «501 · double in · double out · al meglio di 3 leg»
+  A.rules = (c) => [c.start, c.in === 'double' ? 'double in' : '', c.out === 'double' ? 'double out' : 'chiusura libera',
+    c.sets ? 'al meglio di ' + c.sets + ' set' : 'al meglio di ' + c.legs + ' leg'].filter(Boolean).join(' · ');
 
   // Finestrelle
   let onOk = null, onAsk = null;

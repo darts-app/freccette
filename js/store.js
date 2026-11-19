@@ -4,7 +4,7 @@
   const KEY = 'freccette.data.v1';
   function fresh() {
     return { v: 1, players: [], matches: [], backupAt: 0,
-      settings: { listen: 'tap', start: 501, out: 'double', legs: 3, sets: 0, lineup: [], pad: false } };
+      settings: { listen: 'tap', start: 501, in: 'straight', out: 'double', legs: 3, sets: 0, lineup: [], pad: false } };
   }
   function load(ls) {
     try {

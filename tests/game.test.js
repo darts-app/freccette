@@ -33,4 +33,19 @@
   st = G.replay(three, [{ darts: [S1] }, { darts: [S1] }, { darts: [S1] }, { darts: [S1] }]);
   T.eq([st.cur, st.rem], [1, [99, 100, 100]], 'tre giocatori a giro');
   T.eq(G.toWin(5), 3, 'al meglio di 5 = 3 vinte');
+
+  T.group('double in');
+  const S5 = d(5, 1), BULL = d(25, 2), S25 = d(25, 1);
+  T.eq(G.applyTurn(501, [T20, D20, S5], 'double', false), { after: 456, bust: false, win: false, used: 3 }, 'T20 non conta, D20 apre, poi 5');
+  T.eq(G.applyTurn(501, [T20, T20, T20], 'double', false), { after: 501, bust: false, win: false, used: 3 }, 'senza doppio: resta 501');
+  T.eq(G.applyTurn(501, [BULL, T20], 'double', false), { after: 391, bust: false, win: false, used: 2 }, 'il bull apre');
+  T.eq(G.applyTurn(501, [S25, T20], 'double', false), { after: 501, bust: false, win: false, used: 2 }, 'il 25 non apre');
+  T.eq(G.applyTurn(501, [T20, T20, T20], 'double'), { after: 321, bust: false, win: false, used: 3 }, 'già partito: conta tutto');
+  T.eq(G.turnEnd(40, [D20], 'double', false), 0, 'turnEnd: il doppio che apre conta');
+  T.eq(G.turnEnd(40, [T20, S1], 'double', false), -1, 'turnEnd: prima del doppio non si sballa');
+  const din = { start: 501, in: 'double', out: 'double', legs: 1, sets: 0, players: [{ id: 'a' }, { id: 'b' }] };
+  T.ok(!G.isOpen(din, 501) && G.isOpen(din, 459) && G.isOpen(Object.assign({}, din, { in: 'straight' }), 501), 'isOpen');
+  st = G.replay(din, [{ darts: [T20, T20, T20] }, { darts: [D20, S1, S1] }, { darts: [S1, D20, S1] }, { darts: [T20] }]);
+  T.eq(st.rem, [460, 399], 'replay double in: 1 non conta, D20 apre');
+  T.eq(st.legs[0].turns.map((t) => t.before - t.after), [0, 42, 41, 60], 'punti per turno');
 })();

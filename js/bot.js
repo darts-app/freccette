@@ -22,7 +22,8 @@
     };
   }
   function gauss(rnd) { let u = 0; while (u === 0) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); }
-  function target(rem, left, out) {
+  function target(rem, left, out, opened) {
+    if (opened === false) return B.dart(20, 2);              // Double in: prima si cerca il doppio per partire
     const r = D.checkout.route(rem, left, out);
     if (r) return r[0];
     if (out === 'double') {
@@ -33,13 +34,14 @@
   }
   function throwAt(t, sigma, rnd) { const a = B.aim(t); return B.hit(a.x + gauss(rnd) * sigma, a.y + gauss(rnd) * sigma); }
   // un turno intero del bot: si ferma se chiude o sballa
-  function turn(rem, out, sigma, rnd) {
+  function turn(rem, out, sigma, rnd, opened) {
     const darts = [];
-    let s = rem;
+    let s = rem, on = opened !== false;
     for (let i = 0; i < 3; i++) {
-      const d = throwAt(target(s, 3 - i, out), sigma, rnd);
+      const d = throwAt(target(s, 3 - i, out, on), sigma, rnd);
       darts.push(d);
-      if (D.game.turnEnd(rem, darts, out) >= 0) break;
+      if (D.game.turnEnd(rem, darts, out, opened) >= 0) break;
+      if (!on) { if (!B.isDouble(d)) continue; on = true; }
       s -= B.score(d);
     }
     return darts;

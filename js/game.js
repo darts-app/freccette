@@ -2,20 +2,23 @@
 (function (D) {
   'use strict';
   const B = D.board;
+  // Double in: finché il giocatore non è partito (opened === false) i tiri contano solo dal primo doppio, bull compreso
   // indice del tiro con cui il turno finisce (chiusura o sballo), -1 se non finisce
-  function turnEnd(rem, darts, out) {
-    let s = rem;
+  function turnEnd(rem, darts, out, opened) {
+    let s = rem, on = opened !== false;
     for (let i = 0; i < darts.length; i++) {
+      if (!on) { if (!B.isDouble(darts[i])) continue; on = true; }
       s -= B.score(darts[i]);
       if (s <= 0 || (out === 'double' && s === 1)) return i;
     }
     return -1;
   }
   // applica un turno: { after, bust, win, used }
-  function applyTurn(rem, darts, out) {
-    let s = rem;
+  function applyTurn(rem, darts, out, opened) {
+    let s = rem, on = opened !== false;
     for (let i = 0; i < darts.length; i++) {
       const d = darts[i];
+      if (!on) { if (!B.isDouble(d)) continue; on = true; }
       s -= B.score(d);
       if (s === 0 && (out !== 'double' || B.isDouble(d))) return { after: 0, bust: false, win: true, used: i + 1 };
       if (s <= 0 || (out === 'double' && s === 1)) return { after: rem, bust: true, win: false, used: i + 1 };
@@ -23,7 +26,9 @@
     return { after: s, bust: false, win: false, used: darts.length };
   }
   const toWin = (n) => Math.floor(n / 2) + 1;
-  // cfg = { start, out: 'double'|'single', legs, sets (0 = senza set), players: [...] }; turns = [{ darts }]
+  // partito? Con Double in si parte al primo doppio: da lì il punteggio non torna più al valore iniziale
+  const isOpen = (cfg, rem) => cfg.in !== 'double' || rem !== cfg.start;
+  // cfg = { start, in: 'straight'|'double' (manca = normale), out: 'double'|'single', legs, sets (0 = senza set), players: [...] }; turns = [{ darts }]
   function replay(cfg, turns) {
     const P = cfg.players.length;
     const st = { legs: [], rem: [], cur: 0, set: 0, leg: 0, legsWon: Array(P).fill(0), setsWon: Array(P).fill(0), done: false, winner: -1 };
@@ -39,7 +44,7 @@
       if (st.done) break;
       const leg = st.legs[st.legs.length - 1];
       const p = st.cur, before = st.rem[p];
-      const r = applyTurn(before, t.darts, cfg.out);
+      const r = applyTurn(before, t.darts, cfg.out, isOpen(cfg, before));
       leg.turns.push({ p: p, darts: t.darts.slice(0, r.used), before: before, after: r.after, bust: r.bust, win: r.win });
       st.rem[p] = r.after;
       if (!r.win) { st.cur = (p + 1) % P; continue; }
@@ -52,5 +57,5 @@
     }
     return st;
   }
-  D.game = { turnEnd, applyTurn, replay, toWin };
+  D.game = { turnEnd, applyTurn, replay, toWin, isOpen };
 })(globalThis.D = globalThis.D || {});
