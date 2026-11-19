@@ -22,7 +22,7 @@
   /* ---------- Gioca ---------- */
   D.views.gioca = function () {
     const d = A.data, cur = D.store.current(d);
-    let h = top('Freccette');
+    let h = top('Darts');
     if (!d.players.length && !d.matches.length) h += `<button class="card bk" data-act="restore"><b>Hai reinstallato l'app?</b><span>Tocca per ripristinare il backup</span></button>`;
     else if (d.matches.some((m) => m.done) && Date.now() - (d.backupAt || 0) > 7 * DAY) h += `<button class="card bk" data-act="backup"><b>Salva il backup</b><span>L'ultimo ha più di 7 giorni</span></button>`;
     // in evidenza: la partita in corso, se no la rivincita dell'ultima finita

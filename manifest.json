@@ -1,15 +1,15 @@
 {
-  "name": "Freccette",
-  "short_name": "Freccette",
+  "name": "Darts",
+  "short_name": "Darts",
   "lang": "it",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0A0A0E",
-  "theme_color": "#0A0A0E",
+  "background_color": "#0B0B0F",
+  "theme_color": "#0B0B0F",
   "icons": [
-    { "src": "img/icona-180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "img/icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "img/darts-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "img/darts-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }

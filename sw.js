@@ -1,7 +1,7 @@
-/* Freccette — service worker: tiene l'app nel telefono così funziona senza rete (come Flow) */
-const VERSION = '0.2.0';           // tenere uguale a VERSION in js/app.js
+/* Darts (ex Freccette) — service worker: tiene l'app nel telefono così funziona senza rete (come Flow) */
+const VERSION = '0.2.1';           // tenere uguale a VERSION in js/app.js
 const CACHE = 'freccette-' + VERSION;
-const FILES = ['./', 'index.html', 'app.css', 'manifest.json', 'img/icona-180.png', 'img/icona-512.png',
+const FILES = ['./', 'index.html', 'app.css', 'manifest.json', 'img/darts-180.png', 'img/darts-512.png',
   'js/board.js', 'js/checkout.js', 'js/parse.js', 'js/game.js', 'js/bot.js', 'js/stats.js', 'js/store.js',
   'js/voice.js', 'js/app.js', 'js/views.js', 'js/play.js'];
 
