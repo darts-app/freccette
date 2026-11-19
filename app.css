@@ -177,28 +177,32 @@ body.v-partita .app { height: 100%; gap: 0; padding-bottom: 0; }
 .ptop .mid b { font-size: 15px; } .ptop .mid span { font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vbtn { justify-self: end; display: flex; align-items: center; gap: 5px; background: var(--surface); border-radius: 999px; padding: 7px 11px 7px 9px; font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .vbtn svg.i { width: 15px; height: 15px; color: var(--accent); }
-.pcs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-.pcs.n1 { grid-template-columns: 1fr; }
-.pc { background: var(--surface); border-radius: var(--r); padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.pc .nm { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; color: var(--muted); min-width: 0; }
-.pc .nmt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: auto; flex: none; box-shadow: 0 0 0 4px var(--soft); }
-.pc .sc { font-size: 56px; font-weight: 800; letter-spacing: -.035em; line-height: 1; color: var(--muted); }
-.pc .sc.bust { color: var(--red); font-size: 40px; line-height: 1.4; }
-.pc .co { font-size: 13px; font-weight: 700; color: var(--gold); min-height: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc .co.need { color: var(--faint); font-weight: 600; }
-.pips { display: flex; flex-direction: column; gap: 4px; }
-.pip { display: flex; align-items: center; gap: 6px; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
-.pip span { width: 26px; }
-.pip i { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--surface-3); }
+/* righe intere, una per giocatore (scelta di 0.4.0): nome e pallini, punteggio, media e frecce, ultimo turno in grigio */
+.prs { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.pr { background: var(--surface); border-radius: var(--r); padding: 11px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "nm pips" "sc st" "last last"; row-gap: 3px; column-gap: 10px; }
+.pr .nm { grid-area: nm; display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; color: var(--muted); min-width: 0; }
+.pr .nmt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: 4px; flex: none; box-shadow: 0 0 0 4px var(--soft); }
+.pr .pips { grid-area: pips; display: flex; gap: 10px; align-items: center; justify-self: end; }
+.pip { display: flex; align-items: center; gap: 4px; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+.pip i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--surface-3); }
 .pip i.f { background: var(--text); box-shadow: none; }
-.pc .avg { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; color: var(--faint); border-top: 1px solid var(--line); padding-top: 7px; margin-top: auto; }
-.pc .avg b { color: var(--muted); font-weight: 700; }
-.pc.on { background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--accent); }
-.pc.on .nm, .pc.on .sc { color: var(--text); }
-.pc.on .sc.bust { color: var(--red); }
-.pc.on .pip i.f { background: var(--accent); }
-.pcs.n3 .pc, .pcs.n4 .pc { gap: 3px; } .pcs.n3 .sc, .pcs.n4 .sc { font-size: 42px; } .pcs.n3 .avg, .pcs.n4 .avg { display: none; }
+.pr .sc { grid-area: sc; font-size: 52px; font-weight: 800; letter-spacing: -.035em; line-height: 1; color: var(--muted); }
+.pr .sc.bust { color: var(--red); font-size: 40px; line-height: 1.3; }
+.pr .st { grid-area: st; align-self: end; text-align: right; font-size: 12px; color: var(--faint); line-height: 1.5; white-space: nowrap; }
+.pr .st b { color: var(--muted); font-weight: 700; }
+.pr .last { grid-area: last; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); min-height: 22px; min-width: 0; overflow: hidden; }
+.pr .last .d { font-size: 13px; font-weight: 700; color: var(--muted); background: var(--surface-2); border-radius: 7px; padding: 2px 7px; }
+.pr .last b { color: var(--muted); margin-left: 2px; white-space: nowrap; }
+.pr .co { color: var(--gold); font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pr .co.need { color: var(--faint); font-weight: 600; }
+.pr.on { background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--accent); }
+.pr.on .nm, .pr.on .sc { color: var(--text); } .pr.on .sc.bust { color: var(--red); }
+.pr.on .pip i.f { background: var(--accent); } .pr.on .st b { color: var(--text); }
+.pr.on .last .d { background: var(--surface-3); }
+.prs.n3 .pr, .prs.n4 .pr { padding: 8px 12px; row-gap: 2px; } .prs.n3 .sc, .prs.n4 .sc { font-size: 34px; } .prs.n3 .sc.bust, .prs.n4 .sc.bust { font-size: 28px; }
+.micwrap.sm { gap: 10px; min-height: 110px; } .micwrap.sm .mic { width: 76px; height: 76px; box-shadow: 0 0 0 8px var(--soft); } .micwrap.sm .mic svg.i { width: 30px; height: 30px; }
 .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
 /* barra del turno: bordo verde come il riquadro di chi tira, totale a destra */
 .tbar { display: grid; grid-template-columns: 1fr 1fr 1fr auto; margin-top: 14px; background: var(--surface-2); border-radius: 16px; overflow: hidden; box-shadow: inset 0 0 0 2px var(--accent); }

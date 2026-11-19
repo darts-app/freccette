@@ -3,17 +3,23 @@
   'use strict';
   const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
   let rec = null, want = false, mode = 'tap', h = {}, denied = false, startedAt = 0;
+  // Risposta veloce: Safari manda il testo anche mentre parli (risultati «provvisori»). Se un testo provvisorio
+  // resta uguale per FAST_MS e h.fast(alts) lo accetta (turno completo), i tiri si segnano subito e la frase finale si ignora.
+  const FAST_MS = 350;
+  let sess = 0, taken = {}, fastT = 0, fastKey = '', fastText = '';
   const emit = (s) => { if (h.onState) h.onState(s); };
   function supported() { return !!SR; }
   function make() {
-    const r = new SR();
-    r.lang = 'it-IT'; r.interimResults = false; r.maxAlternatives = 5; r.continuous = mode === 'always';
+    const r = new SR(), id = ++sess;
+    r.lang = 'it-IT'; r.interimResults = !!h.fast; r.maxAlternatives = 5; r.continuous = mode === 'always';
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i];
-        if (!res.isFinal) continue;
+        const res = e.results[i], key = id + ':' + i;
         const alts = [];
         for (let j = 0; j < res.length; j++) alts.push(res[j].transcript);
+        if (!res.isFinal) { if (h.fast && !taken[key]) interim(alts, key); continue; }
+        if (fastKey === key) { clearTimeout(fastT); fastKey = ''; }
+        if (taken[key]) continue;                            // già segnato con la risposta veloce
         if (h.onResult) h.onResult(alts);
       }
     };
@@ -32,7 +38,18 @@
     };
     return r;
   }
-  // opts = { mode: 'tap'|'always', onResult(alts), onState(s), onError(code) }
+  function interim(alts, key) {
+    const text = (alts[0] || '').trim();
+    if (!text || (key === fastKey && text === fastText)) return;
+    clearTimeout(fastT); fastKey = key; fastText = text;
+    fastT = setTimeout(() => {
+      fastKey = '';
+      if (taken[key] || !h.fast || !h.fast(alts)) return;
+      taken[key] = true;
+      if (mode === 'tap') stop();                            // un tocco: il microfono si libera subito
+    }, FAST_MS);
+  }
+  // opts = { mode: 'tap'|'always', onResult(alts), fast(alts) → true se ha segnato i tiri (facoltativo), onState(s), onError(code) }
   function start(opts) {
     h = opts; mode = opts.mode || 'tap';
     if (!SR) { emit('unsupported'); return false; }
@@ -41,7 +58,7 @@
     try { rec = make(); rec.start(); startedAt = Date.now(); emit('listening'); return true; } catch (e) { rec = null; emit('paused'); return false; }
   }
   function stop() {
-    want = false;
+    want = false; clearTimeout(fastT); fastKey = '';
     if (rec) { const r = rec; rec = null; try { r.abort(); } catch (e) { /* già fermo */ } }
     emit('idle');
   }

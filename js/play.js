@@ -79,19 +79,30 @@
     D.voice.start({
       mode: A.data.settings.listen,
       onResult: heard,
+      fast: A.data.settings.fast === 'off' ? null : fast,
       onState: (s) => { vstate = s; if (A.view === 'partita') A.render(); },
       onError: (err) => { if (err === 'not-allowed' || err === 'service-not-allowed') { vstate = 'denied'; A.render(); } },
     });
   }
-  function heard(alts) {
-    if (A.view !== 'partita' || busy || st.done) return;
+  function read(alts) {
     const full = confirmT !== 0, base = st.rem[st.cur], op = opened();
     const pend = fixing ? [] : pending;                     // turno riaperto: quello che dici lo sostituisce tutto
-    const r = D.parse.choose(alts, {
+    return D.parse.choose(alts, {
       need: full ? 0 : 3 - pend.length,
       ends: (c) => { const e = G.turnEnd(base, pend.concat(c), m.cfg.out, op); return e < 0 ? -1 : e - pend.length; },
       busts: (c) => G.applyTurn(base, pend.concat(c), m.cfg.out, op).bust,
     });
+  }
+  // risposta veloce: si segna subito solo un turno completo e sicuro (niente dubbi, niente comandi)
+  function fast(alts) {
+    if (A.view !== 'partita' || busy || st.done || confirmT) return false;
+    if (read(alts).kind !== 'ok') return false;
+    heard(alts); return true;
+  }
+  function heard(alts) {
+    if (A.view !== 'partita' || busy || st.done) return;
+    const full = confirmT !== 0;
+    const r = read(alts);
     if (r.kind === 'cmd') {
       D.voice.beep(true);
       if (r.cmd === 'undo') acts.fix(); else { clearTimeout(confirmT); confirmT = 0; pending = []; fixing = false; A.render(); }
@@ -210,18 +221,22 @@
     const hint = bust ? '' : !openNow ? 'serve un doppio' : route ? D.checkout.text(route) : '';
     const leg = st.legs[st.legs.length - 1];
     const where = (c.sets ? `Set ${st.set + 1} · ` : '') + `Leg ${st.leg + 1}`;
-    const pips = (lab, n, k) => `<div class="pip"><span>${lab}</span>${Array.from({ length: k }, (_, j) => `<i class="${j < n ? 'f' : ''}"></i>`).join('')}</div>`;
-    // riquadri tutti uguali: chi tira ha il bordo verde
-    const cards = c.players.map((p, i) => {
+    const pips = (lab, n, k) => `<span class="pip">${lab}${Array.from({ length: k }, (_, j) => `<i class="${j < n ? 'f' : ''}"></i>`).join('')}</span>`;
+    const P = c.players.length;
+    const lastOf = (i) => { for (let k = leg.turns.length - 1; k >= 0; k--) if (leg.turns[k].p === i) return leg.turns[k]; return null; };
+    // una riga intera per giocatore, tutte uguali: chi tira ha il bordo verde; in fondo l'ultimo turno in grigio
+    const rows = c.players.map((p, i) => {
       const on = i === st.cur;
       const darts = leg.turns.reduce((a, t) => a + (t.p === i ? t.darts.length : 0), 0) + (on ? pending.length : 0);
       const sc = on ? (bust ? 'Sballo' : now) : st.rem[i];
       const pp = (c.sets ? pips('Set', st.setsWon[i], G.setsToWin(c)) : '') + (G.legsToWin(c) > 1 || c.sets ? pips('Leg', st.legsWon[i], G.legsToWin(c)) : '');
-      return `<div class="pc ${on ? 'on' : ''}"><span class="nm">${A.avatar(p, 'xs')}<span class="nmt">${esc(p.name)}</span>${on ? '<span class="dot"></span>' : ''}</span>
-        <b class="sc num ${on && bust ? 'bust' : ''}">${sc}</b><span class="co ${on && !openNow ? 'need' : ''}">${on && hint ? hint : '&nbsp;'}</span>
-        <div class="pips">${pp}</div><div class="avg"><span>media <b class="num">${num(D.stats.matchAvg(st, i) || '–')}</b></span><span>frecce <b class="num">${darts}</b></span></div></div>`;
+      const lt = lastOf(i);
+      const last = on && hint ? `<span class="co ${!openNow ? 'need' : ''}">${hint}</span>`
+        : lt ? `<span class="lbl">${P >= 3 ? 'ultimo' : 'ultimo turno'}</span>${lt.darts.map((d) => `<span class="d">${B.label(d)}</span>`).join('')}<b>${lt.bust ? 'sballo' : '= ' + (lt.before - lt.after)}</b>` : '';
+      return `<div class="pr ${on ? 'on' : ''}"><span class="nm">${A.avatar(p, 'xs')}<span class="nmt">${esc(p.name)}</span>${on ? '<span class="dot"></span>' : ''}</span><span class="pips">${pp}</span>
+        <b class="sc num ${on && bust ? 'bust' : ''}">${sc}</b><span class="st">media <b class="num">${num(D.stats.matchAvg(st, i) || '–')}</b>${P >= 3 ? ' · ' : '<br>'}frecce <b class="num">${darts}</b></span>
+        <span class="last">${last || '&nbsp;'}</span></div>`;
     }).join('');
-    const P = c.players.length;
     const slots = [0, 1, 2].map((i) => { const d = pending[i]; return `<button class="slot ${d ? 'f' : ''}" data-act="slot" data-i="${i}">${d ? B.label(d) : '–'}</button>`; }).join('');
     // barra del turno: i 3 tiri con i loro punti (con Double in valgono solo dal primo doppio) e il totale
     let on = op;
@@ -244,9 +259,9 @@
       : `<button class="btn2" data-act="back" ${canFix ? '' : 'disabled'}>${D.icon('bksp')}Indietro</button>`;
     return `<header class="ptop"><button class="x" data-act="exit">‹ Esci</button><div class="mid"><b>${where}</b><span>${A.rules(c, true)}</span></div>
         <button class="vbtn" data-act="vmode" aria-label="Cambia modo della voce">${D.icon('mic')}${always ? 'Sempre' : 'Un tocco'}</button></header>
-      <div class="pcs n${P}">${cards}</div>
+      <div class="prs n${P}">${rows}</div>
       ${tbar}<p class="status">${status || '&nbsp;'}</p>
-      <div class="micwrap">${voiceOk ? `<button class="mic ${vstate}" data-act="mic" aria-label="Parla">${D.icon('mic')}</button>` : ''}<p class="hint">${state}</p></div>
+      <div class="micwrap ${P >= 3 ? 'sm' : ''}">${voiceOk ? `<button class="mic ${vstate}" data-act="mic" aria-label="Parla">${D.icon('mic')}</button>` : ''}<p class="hint">${state}</p></div>
       <div class="pfoot">${human ? `<button class="btn2" data-act="pad">${D.icon('kbd')}Tastiera</button>` : '<span></span>'}${fixBtn}</div>
       <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(who().name)}</b><span class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</span><em class="${!openNow ? 'need' : ''}">${hint}</em></div><div class="kslots">${slots}</div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="back" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="pad">Chiudi</button>' : ''}</div>`;
   };

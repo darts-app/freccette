@@ -75,13 +75,14 @@
       row('Chiusura', 'come si finisce', seg('out', [['double', 'Doppio'], ['single', 'Libera']])) +
       step('legs', 'Leg', s.sets ? 'in ogni set' : '', 1, 21) + mode('legsMode') +
       step('sets', 'Set', '', 0, 13) + (s.sets ? mode('setsMode') : '') + '</div>');
-    h += group('Voce', '', '<div class="list">' + row('Microfono', '', seg('listen', [['tap', 'Un tocco'], ['always', 'Sempre']])) + '</div>');
+    h += group('Voce', '', '<div class="list">' + row('Microfono', '', seg('listen', [['tap', 'Un tocco'], ['always', 'Sempre']])) +
+      row('Risposta veloce', 'segna i tiri senza aspettare la fine della frase', seg('fast', [['on', 'Sì'], ['off', 'No']])) + '</div>');
     h += `<div class="foot"><p class="summary">${A.rules(s)}</p><button class="btn big" data-act="start" ${line.length ? '' : 'disabled'}>Inizia</button></div>`;
     return h;
   };
   acts.set = (el) => {
     const k = el.dataset.k;
-    A.data.settings[k] = ['out', 'listen', 'in', 'legsMode', 'setsMode'].indexOf(k) >= 0 ? el.dataset.v : +el.dataset.v;
+    A.data.settings[k] = ['out', 'listen', 'in', 'legsMode', 'setsMode', 'fast'].indexOf(k) >= 0 ? el.dataset.v : +el.dataset.v;
     A.persist(); A.render();
   };
   acts.step = (el) => {

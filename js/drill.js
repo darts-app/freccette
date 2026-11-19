@@ -74,18 +74,27 @@
     D.voice.start({
       mode: A.data.settings.listen,
       onResult: heard,
+      fast: A.data.settings.fast === 'off' ? null : fast,
       onState: (x) => { vstate = x; if (A.view === 'allenamento') A.render(); },
       onError: (err) => { if (err === 'not-allowed' || err === 'service-not-allowed') { vstate = 'denied'; A.render(); } },
     });
   }
-  function heard(alts) {
-    if (A.view !== 'allenamento' || !s || s.done || confirmT) return;
+  function read(alts) {
     const x = dr();
-    const r = D.parse.choose(alts, {
+    return D.parse.choose(alts, {
       need: 3 - pending.length,
       ends: (c) => { const t = x.turn(st, pending.concat(c)); return t.endAt < 0 ? -1 : t.endAt - pending.length; },
       busts: (c) => x.turn(st, pending.concat(c)).bust,
     });
+  }
+  function fast(alts) {
+    if (A.view !== 'allenamento' || !s || s.done || confirmT) return false;
+    if (read(alts).kind !== 'ok') return false;
+    heard(alts); return true;
+  }
+  function heard(alts) {
+    if (A.view !== 'allenamento' || !s || s.done || confirmT) return;
+    const r = read(alts);
     if (r.kind === 'cmd') { D.voice.beep(true); acts.dback(); return; }
     if (r.kind === 'ok' || r.kind === 'partial') { msg = '«' + (alts[0] || '') + '»'; D.voice.beep(true); addDarts(r.darts); return; }
     if (r.kind === 'ambiguous') {
