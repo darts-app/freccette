@@ -50,4 +50,14 @@
   const ses = [{ drill: 'world', player: 'a', done: true, result: 40 }, { drill: 'world', player: 'a', done: true, result: 33 },
     { drill: 'world', player: 'a', done: false, result: 10 }, { drill: 'bob', player: 'a', done: true, result: 120 }];
   T.eq([TR.best(ses, 'world', 'a'), TR.best(ses, 'bob', 'a'), TR.best(ses, 't20', 'a')], [33, 120, null], 'record: il minimo per i giri, il massimo per gli altri');
+  // allenamento lasciato a metà: si trova e si può abbandonare (il record resta)
+  const tr = [{ id: 't1', drill: 'dbl', player: 'a', done: true, result: 58, turns: [] },
+    { id: 't2', drill: 'dbl', player: 'a', done: false, turns: [{ darts: [X, X, X] }] },
+    { id: 't3', drill: 'dbl', player: 'b', done: false, turns: [] },
+    { id: 't4', drill: 'world', player: 'a', done: false, turns: [] },
+    { id: 't5', drill: 'dbl', player: 'a', done: false, turns: [] }];
+  T.eq([TR.unfinished(tr, 'dbl', 'a').id, TR.unfinished(tr, 'dbl', 'b').id, TR.unfinished(tr, 'bob', 'a')], ['t5', 't3', null], 'in corso: il più recente non finito, per allenamento e giocatore');
+  const left = TR.drop(tr, 'dbl', 'a');
+  T.eq(left.map((t) => t.id), ['t1', 't3', 't4'], 'abbandona: via tutti i non finiti di quel giocatore e allenamento, il resto resta');
+  T.eq([TR.unfinished(left, 'dbl', 'a'), TR.best(left, 'dbl', 'a'), tr.length], [null, 58, 5], 'abbandona: niente più in corso, record uguale, lista di prima intatta');
 })();

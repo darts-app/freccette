@@ -8,7 +8,7 @@
   const dr = () => TR.drill(s.drill);
   function refresh() { s = A.data.trainings.find((x) => x.id === A.sel); st = TR.replay(s.drill, s.turns); }
   const me = () => A.data.players.find((p) => p.id === A.data.settings.trainP) || A.data.players[0] || null;
-  const unfinished = (id, pid) => A.data.trainings.slice().reverse().find((t) => t.drill === id && t.player === pid && !t.done);
+  const unfinished = (id, pid) => TR.unfinished(A.data.trainings, id, pid);
   const group = (label, inner) => `<section class="group"><div class="ghead"><span class="t-label">${label}</span></div>${inner}</section>`;
 
   /* ---------- Scheda ---------- */
@@ -20,9 +20,18 @@
     h += group('Scegli un allenamento · record di ' + esc(p.name), '<div class="list">' + TR.DRILLS.map((x) => {
       const b = TR.best(A.data.trainings, x.id, p.id), open = unfinished(x.id, p.id);
       return `<button class="dr" data-act="dstart" data-id="${x.id}"><span class="ic">${D.icon(x.icon)}</span><span class="t"><b>${x.name}</b><span>${open ? '<em>in corso</em> · tocca per riprendere' : x.desc}</span></span>
-        <span class="rec"><b class="num">${TR.fmt(x.id, b)}</b><span>${b === null ? 'mai fatto' : x.unit}</span></span><span class="chev">›</span></button>`;
+        ${open ? `<span class="dx" data-act="ddrop" data-id="${x.id}" role="button" aria-label="Abbandona ${x.name}"><i>✕</i></span>`
+    : `<span class="rec"><b class="num">${TR.fmt(x.id, b)}</b><span>${b === null ? 'mai fatto' : x.unit}</span></span>`}<span class="chev">›</span></button>`;
     }).join('') + '</div>');
     return h;
+  };
+  // ✕ nella riga «in corso»: abbandona dopo conferma (il record resta)
+  acts.ddrop = (el) => {
+    const p = me(), x = TR.drill(el.dataset.id);
+    if (!p || !x) return;
+    A.confirm(`Abbandonare ${x.name}? I tiri fatti finora si cancellano, il record resta.`, 'Elimina', () => {
+      A.data.trainings = TR.drop(A.data.trainings, x.id, p.id); A.persist(); A.render();
+    }, true);
   };
   acts.trainp = (el) => { A.data.settings.trainP = el.dataset.id; A.persist(); A.render(); };
   acts.dstart = (el) => {
@@ -132,7 +141,10 @@
     else if (s.turns.length) { const t = s.turns.pop(); refresh(); pending = t.darts.slice(0, -1); A.persist(); }
     A.render();
   };
-  acts.dexit = () => { save(); D.voice.stop(); D.play.awake(false); A.tab = 'allena'; A.view = 'home'; A.render(); };
+  acts.dexit = () => {
+    save();
+    if (!s.done && !s.turns.length) { A.data.trainings = A.data.trainings.filter((t) => t !== s); A.persist(); }   // senza tiri: non resta «in corso»
+    D.voice.stop(); D.play.awake(false); A.tab = 'allena'; A.view = 'home'; A.render(); };
   acts.dagain = () => { const p = A.data.players.find((x) => x.id === s.player); if (p) A.data.settings.trainP = p.id; acts.dstart({ dataset: { id: s.drill } }); };
   acts.dend = () => { A.tab = 'allena'; A.view = 'home'; A.render(); };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && A.view === 'allenamento' && confirmT) save(); });

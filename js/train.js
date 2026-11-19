@@ -127,5 +127,12 @@
     if (!rs.length) return null;
     return drill(id).better === 'low' ? Math.min.apply(null, rs) : Math.max.apply(null, rs);
   }
-  D.train = { DRILLS, drill, replay, result, view, fmt, best };
+  // allenamento lasciato a metà (il più recente) di un giocatore; null se non c'è
+  function unfinished(sessions, id, pid) {
+    for (let i = sessions.length - 1; i >= 0; i--) { const t = sessions[i]; if (t.drill === id && t.player === pid && !t.done) return t; }
+    return null;
+  }
+  // abbandona: nuova lista senza i non finiti di quel giocatore e allenamento (i finiti, e quindi i record, restano)
+  const drop = (sessions, id, pid) => sessions.filter((t) => !(t.drill === id && t.player === pid && !t.done));
+  D.train = { DRILLS, drill, replay, result, view, fmt, best, unfinished, drop };
 })(globalThis.D = globalThis.D || {});

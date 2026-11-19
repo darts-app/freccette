@@ -20,6 +20,29 @@
   const ago = (t) => { const n = Math.round((day(Date.now()) - day(t)) / DAY); return n <= 0 ? 'oggi' : n === 1 ? 'ieri' : new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }); };
 
   /* ---------- Gioca ---------- */
+  // Gioca vuota (bozza A «Bersaglio»): bersaglio grigio e 3 freccette del logo che arrivano una alla volta (solo CSS, una volta)
+  let ART = '';
+  function art() {
+    if (ART) return ART;
+    const cx = 115, cy = 115, R = 92, f = (x) => x.toFixed(1);
+    const pt = (r, a) => f(cx + r * Math.sin(a)) + ' ' + f(cy - r * Math.cos(a));
+    const arc = (r0, r1, a0, a1) => `M${pt(r0, a0)}L${pt(r1, a0)}A${r1} ${r1} 0 0 1 ${pt(r1, a1)}L${pt(r0, a1)}A${r0} ${r0} 0 0 0 ${pt(r0, a0)}Z`;
+    let b = `<circle cx="${cx}" cy="${cy}" r="${R * 1.32}" fill="url(#hglow)"/><circle cx="${cx}" cy="${cy}" r="${R * 1.12}" fill="#15151B"/><circle cx="${cx}" cy="${cy}" r="${R}" fill="#1C1C24"/>`;
+    for (let k = 0; k < 20; k++) {
+      const a0 = (k - 0.5) * Math.PI / 10, a1 = (k + 0.5) * Math.PI / 10, ring = k % 2 ? '#3A3A46' : '#2E2E38';
+      b += `<path d="${arc(R * 0.16, R * 0.95, a0, a1)}" fill="${k % 2 ? '#262630' : '#1C1C24'}"/><path d="${arc(R * 0.95, R, a0, a1)}" fill="${ring}"/><path d="${arc(R * 0.58, R * 0.63, a0, a1)}" fill="${ring}"/>`;
+    }
+    b += `<circle cx="${cx}" cy="${cy}" r="${R * 0.16}" fill="#2E2E38"/><circle cx="${cx}" cy="${cy}" r="${R * 0.07}" fill="#6C6C78"/>`;
+    // freccetta del logo con la punta in (0,0); piantata in (x,y), arriva da in alto a destra
+    const dart = '<path d="M0 0L-11 -1.8L-11 1.8Z" fill="#F4F4F6"/><rect x="-34" y="-4.5" width="23" height="9" rx="4.5" fill="#F4F4F6"/><rect x="-59" y="-1.4" width="25" height="2.8" rx="1.4" fill="#A3A3AE"/>' +
+      '<path d="M-56 0L-69 -16H-84L-77 0Z" fill="url(#hvol)"/><path d="M-56 0L-69 16H-84L-77 0Z" fill="url(#hvol)" opacity=".75"/>';
+    const stuck = (x, y, k) => `<g class="d${k}" transform="translate(${x} ${y}) rotate(150) scale(.6)"><g class="fly">${dart}</g></g>`;
+    ART = '<svg width="230" height="230" viewBox="0 0 230 230" aria-hidden="true"><defs>' +
+      '<linearGradient id="hvol" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#32D74B"/><stop offset="1" stop-color="#64F0C8"/></linearGradient>' +
+      '<radialGradient id="hglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#32D74B" stop-opacity=".22"/><stop offset="1" stop-color="#32D74B" stop-opacity="0"/></radialGradient></defs>' +
+      b + '<circle class="pulse" cx="72" cy="102" r="6" fill="none" stroke="#32D74B" stroke-width="1.5"/>' + stuck(72, 102, 1) + stuck(116, 140, 2) + stuck(146, 96, 3) + '</svg>';
+    return ART;
+  }
   D.views.gioca = function () {
     const d = A.data, cur = D.store.current(d);
     let h = top('Darts', false, true);
@@ -32,9 +55,12 @@
       <button class="btn" data-act="${act}" data-id="${m.id}">${D.icon(icon)}${btn}</button></div>`;
     if (cur) h += hero(cur, 'Partita in corso', score(cur), 'resume', 'play', 'Riprendi');
     else if (last) h += hero(last, 'Ultima partita · ' + ago(last.created), title(last), 'rematch', 'replay', 'Rivincita');
-    h += `<button class="btn ${cur || last ? 'ghost' : 'big'}" data-act="nuova">${D.icon('plus')}Nuova partita</button>`;
     // i numeri di un giocatore (prima chi ha giocato di più); «Cambia» passa al prossimo
     const ss = d.players.map((p) => ({ p: p, s: D.stats.forPlayer(d.matches, p.id) })).filter((x) => x.s.darts).sort((a, b) => b.s.matches - a.s.matches);
+    const empty = !cur && !last && !ss.length;
+    if (empty) h += `<div class="art">${art()}</div><div class="empty-t"><b>Pronto a lanciare?</b><span>Scegli chi gioca e di' i tiri a voce.</span></div>`;
+    h += `<button class="btn ${cur || last ? 'ghost' : 'big'}" data-act="nuova">${D.icon('plus')}Nuova partita</button>`;
+    if (empty) h += '<p class="say">Prova a dire <q>triplo venti, cinque, doppio sedici</q></p>';
     if (ss.length) {
       const x = ss[(A.statIdx || 0) % ss.length], tile = (v, l) => `<div class="tile"><b class="num">${v}</b><span>${l}</span></div>`;
       h += `<div class="rowhead"><span class="t-label">I numeri di ${esc(x.p.name)}</span>${ss.length > 1 ? '<button class="link" data-act="statnext">Cambia</button>' : ''}</div>
