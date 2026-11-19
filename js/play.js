@@ -93,7 +93,7 @@
       return;
     }
     if (full) return;                                        // turno già pieno: si aspetta la conferma
-    if (r.kind === 'ok' || r.kind === 'partial') { msg = ''; D.voice.beep(true); addDarts(r.darts); return; }
+    if (r.kind === 'ok' || r.kind === 'partial') { msg = '«' + (alts[0] || '') + '»'; D.voice.beep(true); addDarts(r.darts); return; }
     if (r.kind === 'ambiguous') {
       D.voice.beep(true); opts = r.options;
       A.sheet('<b class="stitle">Cosa hai detto?</b>' + r.options.map((o, i) => `<button class="btn ghost" data-act="pick" data-i="${i}">${o.map(B.label).join(' · ')}</button>`).join(''));
@@ -114,6 +114,7 @@
     const d = v === 0 ? B.MISS : v === 50 ? B.dart(25, 2) : v === 25 ? B.dart(25, mult === 2 ? 2 : 1) : B.dart(v, mult);
     mult = 1; addDarts([d]);
   };
+  acts.pad = () => { A.data.settings.pad = !A.data.settings.pad; A.persist(); A.render(); };
   acts.mult = (el) => { const v = +el.dataset.v; mult = mult === v ? 1 : v; A.render(); };
   acts.slot = (el) => {
     const i = +el.dataset.i;
@@ -147,28 +148,42 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && A.view === 'partita') keepAwake(); });
 
   /* ---------- Schermate ---------- */
+  const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>';
   D.views.partita = function () {
     const c = m.cfg, base = st.rem[st.cur], left = 3 - pending.length;
     const where = (c.sets ? `Set ${st.set + 1} · ` : '') + `Leg ${st.leg + 1}`;
-    const rows = c.players.map((p, i) => `<div class="prow ${i === st.cur ? 'on' : ''}"><b>${esc(p.name)}</b><span class="won">${c.sets ? st.setsWon[i] + ' · ' : ''}${st.legsWon[i]}</span><span class="avg">${num(D.stats.matchAvg(st, i) || '–')}</span><span class="rem num">${st.rem[i]}</span></div>`).join('');
     const r = pending.length ? G.applyTurn(base, pending, c.out) : null;
     const bust = !!(r && r.bust);
     const now = base - B.sum(pending);
     const route = !bust && left > 0 && now <= 170 ? D.checkout.route(now, left, c.out) : null;
+    const leg = st.legs[st.legs.length - 1];
+    // una riga per giocatore: a sinistra nome e punteggio, a destra frecce (leg), media (partita), set e leg vinti
+    const rows = c.players.map((p, i) => {
+      const on = i === st.cur;
+      const darts = leg.turns.reduce((a, t) => a + (t.p === i ? t.darts.length : 0), 0) + (on ? pending.length : 0);
+      const won = c.sets ? `${st.setsWon[i]} · ${st.legsWon[i]}` : st.legsWon[i];
+      const sc = on ? (bust ? 'Sballo' : now) : st.rem[i];
+      const stat = (l, v) => `<span><i>${l}</i><b class="num">${v}</b></span>`;
+      return `<div class="row ${on ? 'on' : ''}"><div class="who"><span class="n">${esc(p.name)}</span><b class="sc num ${on && bust ? 'bust' : ''}">${sc}</b>${on ? `<span class="co">${route ? D.checkout.text(route) : '&nbsp;'}</span>` : ''}</div>
+        <div class="st">${stat('Frecce', darts)}${stat('Media', num(D.stats.matchAvg(st, i) || '–'))}${stat(c.sets ? 'Set · Leg' : 'Leg', won)}</div></div>`;
+    }).join('');
     const slots = [0, 1, 2].map((i) => { const d = pending[i]; return `<button class="slot ${d ? 'f' : ''}" data-act="slot" data-i="${i}">${d ? B.label(d) : '–'}</button>`; }).join('');
-    const status = busy ? 'Tira ' + esc(who().name) + '…' : confirmT ? `✓ ${bust ? 'sballo' : B.sum(pending)} · tocca un tiro per correggere` : esc(msg);
+    const status = confirmT ? `✓ ${bust ? 'sballo' : B.sum(pending)} · tocca un tiro per correggere` : esc(msg);
     const human = !who().bot;
-    const mic = !human ? '' : vstate === 'unsupported' ? '<p class="muted small">Voce non disponibile qui: usa la tastiera.</p>' :
-      `<button class="mic ${vstate}" data-act="mic">${vstate === 'listening' ? 'Ti ascolto…' : vstate === 'paused' ? 'Tocca per riprendere' : vstate === 'denied' ? 'Microfono non permesso' : 'Tocca e parla'}</button>`;
+    const voiceOk = human && vstate !== 'unsupported' && vstate !== 'denied';
+    const state = busy ? 'Tira ' + esc(who().name) + '…' : !human ? '' : vstate === 'unsupported' ? 'Voce non disponibile: usa la tastiera' :
+      vstate === 'denied' ? 'Microfono non permesso' : vstate === 'listening' ? 'Ti ascolto…' : vstate === 'paused' ? 'Tocca per riprendere' : 'Tocca il microfono e parla';
+    const padOpen = human && (A.data.settings.pad || !voiceOk);
     let keys = '';
     for (let n = 1; n <= 20; n++) keys += `<button class="key" data-act="k" data-v="${n}">${n}</button>`;
     keys += '<button class="key" data-act="k" data-v="25">25</button><button class="key" data-act="k" data-v="50">Bull</button><button class="key" data-act="k" data-v="0">0</button>' +
       `<button class="key m ${mult === 2 ? 'on' : ''}" data-act="mult" data-v="2">D</button><button class="key m ${mult === 3 ? 'on' : ''}" data-act="mult" data-v="3">T</button>`;
-    return `<header class="ptop"><button data-act="exit">‹ Esci</button><span>${c.start} · ${where}</span><button data-act="undo">↶ Annulla</button></header>
-      <div class="board"><div class="prow head"><span></span><span>${c.sets ? 'set · leg' : 'leg'}</span><span>media</span><span>resta</span></div>${rows}</div>
-      <div class="now"><span class="name">${esc(who().name)}</span><b class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</b><span class="hint">${route ? D.checkout.text(route) : '&nbsp;'}</span></div>
+    return `<header class="ptop"><button data-act="exit">‹ Esci</button><span>${c.start} · ${where}</span><button data-act="undo" aria-label="Annulla">↶</button></header>
+      <div class="rows">${rows}</div>
       <div class="slots">${slots}</div><p class="status">${status || '&nbsp;'}</p>
-      ${mic}<div class="pad ${human ? '' : 'off'}">${keys}</div>`;
+      <div class="micwrap">${voiceOk ? `<button class="mic ${vstate}" data-act="mic" aria-label="Parla">${MIC}</button>` : ''}</div>
+      <div class="pfoot">${human ? `<button data-act="pad">⌨ Tastiera</button>` : '<span></span>'}<span>${state}</span></div>
+      <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(who().name)}</b><span class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</span><em>${route ? D.checkout.text(route) : ''}</em></div><div class="kslots">${slots}</div>${keys}${voiceOk ? '<button class="key close" data-act="pad">Chiudi</button>' : ''}</div>`;
   };
   D.views.fine = function () {
     const c = m.cfg, w = c.players[st.winner];
