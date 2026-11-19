@@ -65,6 +65,7 @@
     const last = st.legs[st.legs.length - 1].turns.slice(-1)[0] || st.legs[legs - 1].turns.slice(-1)[0];
     m.done = st.done; m.winner = st.winner;
     A.persist();
+    if (last) D.voice.chime(last.win ? 'win' : last.bust ? 'bust' : last.before - last.after === 180 ? '180' : '');
     if (!st.done && st.legs.length > legs) A.toast('Leg a ' + p.name);
     else if (last && last.bust) A.toast('Sballato');
     next();
@@ -222,8 +223,12 @@
     }).join('');
     const P = c.players.length;
     const slots = [0, 1, 2].map((i) => { const d = pending[i]; return `<button class="slot ${d ? 'f' : ''}" data-act="slot" data-i="${i}">${d ? B.label(d) : '–'}</button>`; }).join('');
-    const pts = bust ? 'sballo' : base - now;
-    const status = fixing ? 'Tocca il tiro sbagliato, oppure Conferma' : confirmT ? `✓ ${pts}` : esc(msg);
+    // barra del turno: i 3 tiri con i loro punti (con Double in valgono solo dal primo doppio) e il totale
+    let on = op;
+    const val = pending.map((d) => { if (!on && !B.isDouble(d)) return 0; on = true; return B.score(d); });
+    const tbar = `<div class="tbar">${[0, 1, 2].map((i) => { const d = pending[i]; return `<button class="tcell ${d ? 'f' : 'e'}" data-act="slot" data-i="${i}"><b class="num">${d ? B.label(d) : '–'}</b><small class="num">${d ? val[i] : '&nbsp;'}</small></button>`; }).join('')}
+      <div class="ttot ${bust ? 'bust' : ''}"><b class="num">${bust ? '✗' : base - now}</b><small>${bust ? 'sballo' : 'turno'}</small></div></div>`;
+    const status = fixing ? 'Tocca il tiro sbagliato, oppure Conferma' : confirmT ? '✓' : esc(msg);
     const human = !who().bot;
     const voiceOk = human && vstate !== 'unsupported' && vstate !== 'denied';
     const always = A.data.settings.listen === 'always';
@@ -240,7 +245,7 @@
     return `<header class="ptop"><button class="x" data-act="exit">‹ Esci</button><div class="mid"><b>${where}</b><span>${A.rules(c, true)}</span></div>
         <button class="vbtn" data-act="vmode" aria-label="Cambia modo della voce">${D.icon('mic')}${always ? 'Sempre' : 'Un tocco'}</button></header>
       <div class="pcs n${P}">${cards}</div>
-      <div class="slots">${slots}</div><p class="status">${status || '&nbsp;'}</p>
+      ${tbar}<p class="status">${status || '&nbsp;'}</p>
       <div class="micwrap">${voiceOk ? `<button class="mic ${vstate}" data-act="mic" aria-label="Parla">${D.icon('mic')}</button>` : ''}<p class="hint">${state}</p></div>
       <div class="pfoot">${human ? `<button class="btn2" data-act="pad">${D.icon('kbd')}Tastiera</button>` : '<span></span>'}${fixBtn}</div>
       <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(who().name)}</b><span class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</span><em class="${!openNow ? 'need' : ''}">${hint}</em></div><div class="kslots">${slots}</div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="back" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="pad">Chiudi</button>' : ''}</div>`;
@@ -249,12 +254,12 @@
     const c = m.cfg, w = c.players[st.winner];
     const rows = c.players.map((p) => {
       const s = D.stats.forPlayer([m], p.id);
-      return `<tr><th>${esc(p.name)}</th><td>${num(s.avg)}</td><td>${s.t180}</td><td>${s.hiOut || '–'}</td><td>${s.legsWon}</td></tr>`;
+      return `<tr><th>${esc(p.name)}</th><td>${num(s.avg)}</td><td>${s.f9d ? num(s.f9) : '–'}</td><td>${c.out === 'double' && s.dblTry ? s.dblPct + '%' : '–'}</td><td>${s.t180}</td><td>${s.hiOut || '–'}</td></tr>`;
     }).join('');
     return `<div class="win"><em>Partita vinta da</em><b>${esc(w.name)}</b></div>
-      <table class="sum"><tr><th></th><th>media</th><th>180</th><th>chiusura</th><th>leg</th></tr>${rows}</table>
+      <table class="sum"><tr><th></th><th>media</th><th>prime 9</th><th>doppi</th><th>180</th><th>chiusura</th></tr>${rows}</table>
       <button class="btn big" data-act="again">Rivincita</button>
-      <div class="row2"><button class="btn ghost" data-act="undoEnd">${D.icon('undo')}Correggi turno</button><button class="btn ghost" data-act="exit">Home</button></div>`;
+      <div class="row2"><button class="btn ghost" data-act="undoEnd">${D.icon('undo')}Correggi</button><button class="btn ghost" data-act="exit">Home</button></div>`;
   };
   D.play = { create, open, heard, rematchCfg, awake: (on) => (on ? keepAwake() : sleepOk()) };            // heard: anche per provare la voce dal Mac
 })(globalThis.D = globalThis.D || {});

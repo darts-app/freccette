@@ -133,4 +133,11 @@
   T.eq(P('0 bull 25'), 'ok:0 Bull 25', '«0 bull 25»');
   T.eq(P('bull bull bull'), 'ok:Bull Bull Bull', '«bull bull bull»');
   T.eq(P('zero zero zero'), 'ok:0 0 0', '«zero zero zero»');
+  // «uno uno uno» scritto «111»: 3 cifre attaccate = 3 tiri da una cifra (prima di 1·11 o 11·1)
+  T.eq(P('111'), 'ok:1 1 1', '«111» = 1, 1, 1');
+  T.eq(P('111', ctx(3, 3)), 'ok:1 1', 'manca 3: «111» = 1, 1 → sballo');
+  T.eq(P('123'), 'ok:1 2 3', '«123» = 1, 2, 3');
+  T.eq(P('555'), 'ok:5 5 5', '«555» = 5, 5, 5');
+  T.eq(P('111', ctx(2)), 'ambiguous:1 11|11 1', 'mancano 2 tiri: «111» chiede');
+  T.eq(P(['111', '1 1 1']), 'ok:1 1 1', '«111 | 1 1 1»');
 })();

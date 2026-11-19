@@ -64,5 +64,22 @@
     o.connect(g); g.connect(ac.destination);
     o.start(t); o.stop(t + 0.3);
   }
-  D.voice = { supported, start, stop, unlock, beep };
+  // bip speciali (solo suoni, niente voce): '180' tre note in salita, 'win' chiusura, 'bust' due note in discesa
+  function tone(f, t, dur, type, vol) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function chime(kind) {
+    if (!ac || !kind) return;
+    const t = ac.currentTime + 0.05;
+    if (kind === '180') [880, 1175, 1568].forEach((f, i) => tone(f, t + i * 0.11, 0.14, 'sine', 0.3));
+    else if (kind === 'win') [988, 1319, 1976].forEach((f, i) => tone(f, t + i * 0.13, i === 2 ? 0.45 : 0.15, 'sine', 0.3));
+    else if (kind === 'bust') [330, 220].forEach((f, i) => tone(f, t + i * 0.17, 0.22, 'square', 0.12));
+  }
+  D.voice = { supported, start, stop, unlock, beep, chime };
 })(globalThis.D = globalThis.D || {});

@@ -6,8 +6,8 @@
   const fmt = (t) => new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) + ' · ' +
     new Date(t).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   const num = (x) => String(x).replace('.', ',');
-  function top(title, back) {
-    return `<header class="top">${back ? '<button class="back" data-act="home" aria-label="Indietro">‹</button>' : ''}<h1>${esc(title)}</h1>${back ? '' : `<button class="ver" id="ver">v${A.VERSION}</button>`}</header>`;
+  function top(title, back, logo) {
+    return `<header class="top">${back ? '<button class="back" data-act="home" aria-label="Indietro">‹</button>' : ''}${logo ? '<img class="logo" src="img/darts-180.png" alt="">' : ''}<h1>${esc(title)}</h1>${back ? '' : `<button class="ver" id="ver">v${A.VERSION}</button>`}</header>`;
   }
   function score(m) {
     const st = D.game.replay(m.cfg, m.turns), won = m.cfg.sets ? st.setsWon : st.legsWon;
@@ -22,7 +22,7 @@
   /* ---------- Gioca ---------- */
   D.views.gioca = function () {
     const d = A.data, cur = D.store.current(d);
-    let h = top('Darts');
+    let h = top('Darts', false, true);
     if (!d.players.length && !d.matches.length) h += `<button class="card bk" data-act="restore"><b>Hai reinstallato l'app?</b><span>Tocca per ripristinare il backup</span></button>`;
     else if (d.matches.some((m) => m.done) && Date.now() - (d.backupAt || 0) > 7 * DAY) h += `<button class="card bk" data-act="backup"><b>Salva il backup</b><span>L'ultimo ha più di 7 giorni</span></button>`;
     // in evidenza: la partita in corso, se no la rivincita dell'ultima finita
@@ -169,10 +169,14 @@
     const s = D.stats.forPlayer(A.data.matches, p.id);
     const box = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
     let h = top(p.name, true);
-    h += '<div class="stats">' + box(num(s.avg), 'media 3 freccette') + box(s.dblPct + '%', 'sui doppi') + box(s.t180, '180') +
-      box(s.t140, '140+') + box(s.t100, '100+') + box(s.hiOut || '–', 'chiusura più alta') + box(s.bestLeg || '–', 'leg più corta') +
-      box(s.wins + '/' + s.matches, 'partite vinte') + box(s.legsWon, 'leg vinte') + '</div>';
+    h += '<div class="stats">' + box(num(s.avg), 'media 3 freccette') + box(s.f9d ? num(s.f9) : '–', 'prime 9 freccette') + box(s.dblPct + '%', 'sui doppi') +
+      box(s.t180, '180') + box(s.t140, '140+') + box(s.t100, '100+') + box(s.hiOut || '–', 'chiusura più alta') + box(s.bestLeg || '–', 'leg più corta') +
+      box(s.wins + '/' + s.matches, 'partite vinte') + '</div>';
     h += '<h2>Media per partita</h2>' + chart(s.trend);
+    // record degli allenamenti
+    const tr = D.train.DRILLS.map((x) => ({ x: x, n: A.data.trainings.filter((t) => t.drill === x.id && t.player === p.id && t.done).length, b: D.train.best(A.data.trainings, x.id, p.id) })).filter((r) => r.n);
+    h += '<h2>Allenamenti</h2>' + (tr.length ? '<div class="list">' + tr.map((r) => `<div class="dr"><span class="ic">${D.icon(r.x.icon)}</span><span class="t"><b>${r.x.name}</b><span>${r.n} ${r.n === 1 ? 'volta' : 'volte'}</span></span><span class="rec"><b class="num">${D.train.fmt(r.x.id, r.b)}</b><span>${r.x.unit}</span></span></div>`).join('') + '</div>'
+      : '<p class="muted">Ancora nessun allenamento finito.</p>');
     h += '<div class="row2"><button class="btn ghost" data-act="ren">Rinomina</button><button class="btn ghost danger" data-act="delp">Elimina</button></div>';
     return h;
   };

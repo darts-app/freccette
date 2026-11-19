@@ -58,6 +58,7 @@ body.has-tabs .app > * { flex-shrink: 0; }
 
 /* Testata */
 .top { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.top .logo { width: 34px; height: 34px; border-radius: 9px; flex: none; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .top h1 { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -.03em; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .back { font-size: 34px; line-height: 1; width: 36px; height: 44px; color: var(--accent); }
 .ver { color: var(--faint); font-size: 12px; padding: 10px 0 10px 12px; }
@@ -199,6 +200,17 @@ body.v-partita .app { height: 100%; gap: 0; padding-bottom: 0; }
 .pc.on .pip i.f { background: var(--accent); }
 .pcs.n3 .pc, .pcs.n4 .pc { gap: 3px; } .pcs.n3 .sc, .pcs.n4 .sc { font-size: 42px; } .pcs.n3 .avg, .pcs.n4 .avg { display: none; }
 .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+/* barra del turno: bordo verde come il riquadro di chi tira, totale a destra */
+.tbar { display: grid; grid-template-columns: 1fr 1fr 1fr auto; margin-top: 14px; background: var(--surface-2); border-radius: 16px; overflow: hidden; box-shadow: inset 0 0 0 2px var(--accent); }
+.tcell, .ttot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 9px 0; min-height: 60px; }
+.tcell + .tcell, .ttot { border-left: 1px solid var(--line); }
+.tcell b, .ttot b { font-size: 24px; font-weight: 800; line-height: 1.1; }
+.tcell small, .ttot small { font-size: 11px; font-weight: 600; color: var(--muted); }
+.tcell.e b { color: var(--faint); font-weight: 600; }
+.tcell.hit b { color: var(--accent); }
+.ttot { padding: 9px 16px; min-width: 76px; background: var(--soft); }
+.ttot b { color: var(--accent); } .ttot small { color: var(--accent); opacity: .85; }
+.ttot.bust { background: rgba(255,69,58,.14); } .ttot.bust b, .ttot.bust small { color: var(--red); }
 .slot { height: 54px; border-radius: 14px; background: var(--surface); color: var(--faint); font-size: 22px; font-weight: 800; }
 .slot.f { color: var(--text); background: var(--surface-2); }
 .status { margin: 8px 0 0; text-align: center; color: var(--muted); font-size: 13px; min-height: 18px; }

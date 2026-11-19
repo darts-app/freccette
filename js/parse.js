@@ -54,8 +54,11 @@
         if (/^[1-9]{2}$/.test(x) && v <= 19) tk.sp = [+x[0], +x[1]];   // «14» scritto in cifre: forse era «uno, quattro»
         out.push(tk); continue;
       }
-      // cifre attaccate: prima in 2 numeri («2016» = 20 e 16), se no in 3 («666» = 6, 6, 6)
-      const op = /^\d+$/.test(x) ? (splits(x, 2).length ? splits(x, 2) : splits(x, 3)) : [];
+      // cifre attaccate: prima in 2 numeri («2016» = 20 e 16), se no in 3 («666» = 6, 6, 6).
+      // 3 cifre senza zeri («111», «123»): prima 3 tiri da una cifra, poi i 2 numeri (p = penalità: si preferisce la più bassa)
+      let op = [];
+      if (/^[1-9]{3}$/.test(x)) op = [{ v: [+x[0], +x[1], +x[2]], p: 0 }].concat(splits(x, 2).map((v) => ({ v: v, p: 1 })));
+      else if (/^\d+$/.test(x)) op = (splits(x, 2).length ? splits(x, 2) : splits(x, 3)).map((v) => ({ v: v, p: 0 }));
       out.push(op.length ? { t: 'g', op: op } : { t: 'bad' });
     }
     return out;
@@ -63,24 +66,29 @@
 
   // segni → letture possibili (liste di tiri). «25» può essere 25 oppure 20 e 5.
   const one = (v, mu) => (v === 0 ? B.MISS : v === 50 ? B.dart(25, 2) : B.dart(v, mu || 1));
+  // ogni lettura porta una penalità (lettura.pen): a parità di turno completo vince quella con la penalità più bassa
   function readings(tk) {
-    let outs = [[]];
-    const add = (opts) => { const n = []; outs.forEach((o) => opts.forEach((op) => n.push(o.concat(op)))); outs = n.slice(0, 16); };
+    let outs = [{ d: [], p: 0 }];
+    const add = (opts) => {
+      const n = [];
+      outs.forEach((o) => opts.forEach((op) => { const q = Array.isArray(op) ? { d: op, p: 0 } : op; n.push({ d: o.d.concat(q.d), p: o.p + q.p }); }));
+      outs = n.slice(0, 24);
+    };
     for (let i = 0; i < tk.length; i++) {
       const x = tk[i];
       if (x.t === 'bad') return [];
       if (x.t === 'bull') { add([[B.dart(25, 2)]]); continue; }
       if (x.t === 'miss') { add([[B.MISS]]); continue; }
-      if (x.t === 'g') { add(x.op.map((o) => o.map((v) => one(v)))); continue; }
+      if (x.t === 'g') { add(x.op.map((o) => ({ d: o.v.map((v) => one(v)), p: o.p }))); continue; }
       if (x.t === 'm') {
         const n = tk[i + 1];
         i++;
         if (!n) return [];
         if (n.t === 'bull') { if (x.v === 3) return []; add([[B.dart(25, x.v)]]); continue; }
         if (n.t === 'g') {                                   // «doppio 2016» = D20 16: il moltiplicatore va al primo pezzo
-          const op = n.op.filter((o) => o[0] !== 0 && o[0] !== 50 && !(o[0] === 25 && x.v === 3));
+          const op = n.op.filter((o) => o.v[0] !== 0 && o.v[0] !== 50 && !(o.v[0] === 25 && x.v === 3));
           if (!op.length) return [];
-          add(op.map((o) => o.map((v, k) => one(v, k ? 1 : x.v)))); continue;
+          add(op.map((o) => ({ d: o.v.map((v, k) => one(v, k ? 1 : x.v)), p: o.p }))); continue;
         }
         if (n.t !== 'n' || n.v === 0 || n.v === 50) return [];
         if (n.v === 25) add(x.v === 3 ? [[B.dart(20, 3), B.dart(5, 1)]] : [[B.dart(25, x.v)], [B.dart(20, x.v), B.dart(5, 1)]]);
@@ -94,7 +102,7 @@
         else add([[B.dart(x.v, 1)]]);
       }
     }
-    return outs.filter((o) => o.length);
+    return outs.filter((o) => o.d.length).map((o) => { const d = o.d; d.pen = o.p; return d; });
   }
 
   function parse(text) {
@@ -114,17 +122,18 @@
     for (const { p } of ps) {
       if (p.cmd) return { kind: 'cmd', cmd: p.cmd };
       const complete = [], seen = {};
-      p.cands.forEach((c0) => {
+      p.cands.slice().sort((a, b) => a.pen - b.pen).forEach((c0) => {
         // sballo a metà turno: si dicono lo stesso tutti e 3 i tiri, valgono quelli fino allo sballo (ctx.busts dice se è sballo)
         let c = c0;
-        if (ctx.busts) { const e0 = ctx.ends(c); if (e0 >= 0 && e0 < c.length - 1 && ctx.busts(c.slice(0, e0 + 1))) c = c.slice(0, e0 + 1); }
+        if (ctx.busts) { const e0 = ctx.ends(c); if (e0 >= 0 && e0 < c.length - 1 && ctx.busts(c.slice(0, e0 + 1))) { c = c.slice(0, e0 + 1); c.pen = c0.pen; } }
         if (c.length > ctx.need) return;
         const e = ctx.ends(c);
         if (isFull(c)) { if (!seen[key(c)]) { seen[key(c)] = 1; complete.push(c); } }
         else if (e === -1 && !partial) { partial = c; partialTk = p.tk; }
       });
-      if (complete.length === 1) return { kind: 'ok', darts: complete[0] };
-      if (complete.length > 1 && !amb) amb = complete;       // in dubbio: prima si guarda se un'altra ipotesi è chiara («125 fuori» / «Centro25 fuori»)
+      const low = complete.filter((c) => (c.pen || 0) === Math.min.apply(null, complete.map((x) => x.pen || 0)));
+      if (low.length === 1) return { kind: 'ok', darts: low[0] };
+      if (low.length > 1 && !amb) amb = low;       // in dubbio: prima si guarda se un'altra ipotesi è chiara («125 fuori» / «Centro25 fuori»)
     }
     if (amb) return { kind: 'ambiguous', options: amb };
     if (!partial) return { kind: 'none' };

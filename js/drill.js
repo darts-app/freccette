@@ -58,9 +58,13 @@
     A.persist();
   }
   function commit() {
-    const bust = pending.length && dr().turn(st, pending).bust;
+    const r = pending.length ? dr().turn(st, pending) : null, ok0 = st.ok || 0;
     save();
-    if (bust) A.toast('Sballato');
+    // bip speciali: sballo, chiusura (121), 180 (tiro al 20), nuovo record a fine allenamento
+    const prev = s.done ? TR.best(A.data.trainings.filter((t) => t !== s), s.drill, s.player) : null;
+    const rec = s.done && (prev === null || (dr().better === 'low' ? s.result < prev : s.result > prev));
+    if (r) D.voice.chime(r.bust ? 'bust' : rec || (st.ok || 0) > ok0 ? 'win' : B.sum(pending.length ? pending : s.turns[s.turns.length - 1].darts) === 180 ? '180' : '');
+    if (r && r.bust) A.toast('Sballato');
     if (s.done) { D.voice.stop(); D.play.awake(false); A.view = 'allfine'; A.render(); return; }
     if (A.data.settings.listen === 'always') startVoice();
     A.render();
@@ -129,6 +133,10 @@
     const x = dr(), pr = x.turn(st, pending), v = x.view(pr.st);
     const b = TR.best(A.data.trainings.filter((t) => t !== s), s.drill, s.player);
     const slots = [0, 1, 2].map((i) => { const d = pending[i]; return `<button class="slot ${d ? 'f' : ''} ${d && pr.marks[i] ? 'hit' : ''}" data-act="dslot" data-i="${i}">${d ? B.label(d) : '–'}</button>`; }).join('');
+    // barra del turno: nei giri e in Bob's 27 conta i tiri a segno, negli altri i punti
+    const pts = x.id === 'co121' || x.id === 't20', hits = pr.marks.filter(Boolean).length;
+    const tbar = `<div class="tbar">${[0, 1, 2].map((i) => { const d = pending[i]; return `<button class="tcell ${d ? 'f' : 'e'} ${d && pr.marks[i] ? 'hit' : ''}" data-act="dslot" data-i="${i}"><b class="num">${d ? B.label(d) : '–'}</b><small class="num">${d ? (pts ? B.score(d) : pr.marks[i] ? 'a segno' : '') || '&nbsp;' : '&nbsp;'}</small></button>`; }).join('')}
+      <div class="ttot ${pr.bust ? 'bust' : ''}"><b class="num">${pr.bust ? '✗' : pts ? B.sum(pending) : hits}</b><small>${pr.bust ? 'sballo' : pts ? 'turno' : 'a segno'}</small></div></div>`;
     const voiceOk = vstate !== 'unsupported' && vstate !== 'denied';
     const always = A.data.settings.listen === 'always';
     const state = vstate === 'unsupported' ? 'Voce non disponibile: usa la tastiera' : vstate === 'denied' ? 'Microfono non permesso' :
@@ -143,7 +151,7 @@
         <button class="vbtn" data-act="dvmode" aria-label="Cambia modo della voce">${D.icon('mic')}${always ? 'Sempre' : 'Un tocco'}</button></header>
       <div class="tgt"><span class="lab">${v.label}</span><b class="big num">${v.big}</b>${v.sub ? `<span class="tsub">${v.sub}</span>` : ''}<div class="prog">${v.prog.map((c) => `<i class="${c}"></i>`).join('')}</div></div>
       <div class="kv">${v.kv.map((k) => `<div><b class="num">${k[0]}</b><span>${k[1]}</span></div>`).join('')}</div>
-      <div class="slots">${slots}</div><p class="status">${confirmT ? '✓' : esc(msg) || '&nbsp;'}</p>
+      ${tbar}<p class="status">${confirmT ? '✓' : esc(msg) || '&nbsp;'}</p>
       <div class="micwrap">${voiceOk ? `<button class="mic ${vstate}" data-act="dmic" aria-label="Parla">${D.icon('mic')}</button>` : ''}<p class="hint">${state}</p></div>
       <div class="pfoot"><button class="btn2" data-act="dpad">${D.icon('kbd')}Tastiera</button><button class="btn2" data-act="dback" ${can ? '' : 'disabled'}>${D.icon('bksp')}Indietro</button></div>
       <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(s.name)}</b><span class="num">${v.big}</span><em>${v.sub ? esc(v.sub) : ''}</em></div><div class="kslots">${slots}</div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="dback" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="dpad">Chiudi</button>' : ''}</div>`;

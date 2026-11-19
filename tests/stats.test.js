@@ -22,4 +22,11 @@
   const m2 = { id: 'm2', created: 2000, cfg: Object.assign({}, cfg, { start: 501 }), done: false, turns: [{ darts: [T20, T20, T20] }] };
   const s2 = D.stats.forPlayer([m2, m], 'anna');
   T.eq([s2.t180, s2.matches, s2.trend.map((x) => x.at)], [1, 1, [1000, 2000]], 'partita in corso: conta i tiri, non la partita; ordine per data');
+  // media delle prime 9 freccette di ogni leg
+  const S20 = d(20, 1), m3 = { id: 'm3', created: 3000, cfg: Object.assign({}, cfg, { start: 501 }), done: false, turns: [
+    { darts: [T20, T20, T20] }, { darts: [M, M, M] }, { darts: [S20, S20, S20] }, { darts: [M, M, M] },
+    { darts: [S1, S1, S1] }, { darts: [M, M, M] }, { darts: [T20, T20, T20] }] };
+  const s3 = D.stats.forPlayer([m3], 'anna');
+  T.eq([s3.f9, s3.avg], [81, 105.8], 'prime 9: (180+60+3)/9×3 = 81; media su 12 = 105,8');
+  T.eq(s.f9, 84.6, 'prime 9 con meno di 9 freccette = media di quelle tirate');
 })();
