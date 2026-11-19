@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test freccette</title>
+<style>
+  body { margin: 0; padding: 16px; background: #0A0A0E; color: #F5F5F7; font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  h1 { font-size: 22px; } .ok { color: #30D158; } .ko { color: #FF453A; } li { margin: 3px 0; } small { color: #8E8E99; }
+</style>
+</head>
+<body>
+<h1 id="sum">Test in corso…</h1>
+<ul id="list"></ul>
+<script src="tests/t.js"></script>
+<script src="tests/files.js"></script>
+<script>
+// carica i file uno dopo l'altro (l'ordine conta), poi mostra i risultati
+(function () {
+  const files = SRC.concat(TESTS);
+  function next(k) {
+    if (k === files.length) return show();
+    const s = document.createElement('script');
+    s.src = files[k] + '?t=' + Date.now();
+    s.onload = () => next(k + 1);
+    s.onerror = () => { T.ok(false, 'file mancante: ' + files[k]); next(k + 1); };
+    document.body.appendChild(s);
+  }
+  function show() {
+    const f = T.failed();
+    document.getElementById('sum').innerHTML = `<span class="${f.length ? 'ko' : 'ok'}">${T.results.length} controlli, ${f.length} falliti</span>`;
+    document.getElementById('list').innerHTML = T.results.map((r) => `<li class="${r.pass ? 'ok' : 'ko'}">${r.pass ? '✓' : '✗'} [${r.g}] ${r.name} <small>${r.info}</small></li>`).join('');
+  }
+  next(0);
+})();
+</script>
+</body>
+</html>
