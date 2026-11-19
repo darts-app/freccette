@@ -5,10 +5,10 @@
   const NUM = { zero: 0, uno: 1, due: 2, tre: 3, quattro: 4, cinque: 5, sei: 6, sette: 7, otto: 8, nove: 9, dieci: 10,
     undici: 11, dodici: 12, tredici: 13, quattordici: 14, quindici: 15, sedici: 16, diciassette: 17, diciotto: 18,
     diciannove: 19, venti: 20, venticinque: 25, cinquanta: 50 };
-  // «libro», «pro» = come Safari sente «triplo»; «pool» = «bull» (prova vera sull'iPhone)
+  // «libro», «pro» = come Safari sente «triplo»; «pool», «entro» = «bull», «centro» (prove vere sull'iPhone)
   const MULT = { triplo: 3, tripla: 3, tripli: 3, triple: 3, t: 3, libro: 3, pro: 3, doppio: 2, doppia: 2, doppi: 2, doppie: 2, d: 2,
     singolo: 1, singola: 1, singoli: 1 };
-  const BULL = { centro: 1, bull: 1, bullseye: 1, bulls: 1, bul: 1, bullet: 1, pool: 1 };
+  const BULL = { centro: 1, bull: 1, bullseye: 1, bulls: 1, bul: 1, bullet: 1, pool: 1, entro: 1 };
   const MISS = { fuori: 1, niente: 1, mancato: 1, mancata: 1, miss: 1, nulla: 1 };
   const CMD = { annulla: 'undo', indietro: 'undo', correggi: 'fix', cancella: 'fix' };
 
@@ -19,13 +19,14 @@
   }
   const okNum = (v) => (v >= 1 && v <= 20) || v === 25 || v === 50;
 
-  // cifre attaccate («666», «14912»): tutti i modi di dividerle in k numeri validi
+  // cifre attaccate («666», «14912», «2000»): tutti i modi di dividerle in k numeri validi (anche «0» = fuori)
+  const okPart = (a) => a === '0' || (a[0] !== '0' && okNum(+a));
   function splits(x, k) {
-    if (k === 1) return x[0] !== '0' && okNum(+x) ? [[+x]] : [];
+    if (k === 1) return okPart(x) ? [[+x]] : [];
     const out = [];
     for (let i = 1; i < x.length; i++) {
       const a = x.slice(0, i);
-      if (a[0] === '0' || !okNum(+a)) continue;
+      if (!okPart(a)) continue;
       splits(x.slice(i), k - 1).forEach((r) => out.push([+a].concat(r)));
     }
     return out;
@@ -61,7 +62,7 @@
   }
 
   // segni → letture possibili (liste di tiri). «25» può essere 25 oppure 20 e 5.
-  const one = (v, mu) => (v === 50 ? B.dart(25, 2) : B.dart(v, mu || 1));
+  const one = (v, mu) => (v === 0 ? B.MISS : v === 50 ? B.dart(25, 2) : B.dart(v, mu || 1));
   function readings(tk) {
     let outs = [[]];
     const add = (opts) => { const n = []; outs.forEach((o) => opts.forEach((op) => n.push(o.concat(op)))); outs = n.slice(0, 16); };
@@ -77,7 +78,7 @@
         if (!n) return [];
         if (n.t === 'bull') { if (x.v === 3) return []; add([[B.dart(25, x.v)]]); continue; }
         if (n.t === 'g') {                                   // «doppio 2016» = D20 16: il moltiplicatore va al primo pezzo
-          const op = n.op.filter((o) => o[0] !== 50 && !(o[0] === 25 && x.v === 3));
+          const op = n.op.filter((o) => o[0] !== 0 && o[0] !== 50 && !(o[0] === 25 && x.v === 3));
           if (!op.length) return [];
           add(op.map((o) => o.map((v, k) => one(v, k ? 1 : x.v)))); continue;
         }
@@ -106,7 +107,7 @@
   const key = (ds) => ds.map(B.label).join(' ');
   // alts = ipotesi del riconoscitore; ctx = { need: tiri mancanti, ends(tiri) → indice di fine turno o -1 }
   function choose(alts, ctx) {
-    let partial = null, partialTk = null;
+    let partial = null, partialTk = null, amb = null;
     const isFull = (c) => { if (c.length > ctx.need) return false; const e = ctx.ends(c); return e === c.length - 1 || (e === -1 && c.length === ctx.need); };
     // prima le ipotesi con meno parole sconosciute («Proventi…», «Vitro 20…» vanno in fondo); a parità, l'ordine di Safari
     const ps = alts.map((text, i) => ({ p: parse(text), i: i })).sort((a, b) => (a.p.skip - b.p.skip) || (a.i - b.i));
@@ -120,19 +121,20 @@
         else if (e === -1 && !partial) { partial = c; partialTk = p.tk; }
       });
       if (complete.length === 1) return { kind: 'ok', darts: complete[0] };
-      if (complete.length > 1) return { kind: 'ambiguous', options: complete };
+      if (complete.length > 1 && !amb) amb = complete;       // in dubbio: prima si guarda se un'altra ipotesi è chiara («125 fuori» / «Centro25 fuori»)
     }
+    if (amb) return { kind: 'ambiguous', options: amb };
     if (!partial) return { kind: 'none' };
-    // turno a metà con un numero in cifre («18 14»): forse Safari ha attaccato «uno, quattro». Si chiede.
-    const options = [partial], seen = {};
-    seen[key(partial)] = 1;
+    // turno a metà con un numero in cifre («18 14»): Safari ha attaccato «uno, quattro». Scelta fatta:
+    // si divide l'ultimo numero che completa il turno, senza chiedere (non dopo doppio/triplo).
     for (let j = partialTk.length - 1; j >= 0; j--) {
       const x = partialTk[j];
       if (!x.sp || (j > 0 && partialTk[j - 1].t === 'm')) continue;
       const tk2 = partialTk.slice(0, j).concat([{ t: 'n', v: x.sp[0] }, { t: 'n', v: x.sp[1] }], partialTk.slice(j + 1));
-      readings(tk2).forEach((c) => { if (isFull(c) && !seen[key(c)]) { seen[key(c)] = 1; options.push(c); } });
+      const full = readings(tk2).filter(isFull);
+      if (full.length) return { kind: 'ok', darts: full[0] };
     }
-    return options.length > 1 ? { kind: 'ambiguous', options: options } : { kind: 'partial', darts: partial };
+    return { kind: 'partial', darts: partial };
   }
   D.parse = { words, tokens, readings, parse, choose };
 })(globalThis.D = globalThis.D || {});

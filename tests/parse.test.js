@@ -79,7 +79,7 @@
     ['Doppio 10', 'partial:D10'],
     ['666', 'ok:6 6 6'],
     ['Triplo 20 triplo 20 triplo 20', 'ok:T20 T20 T20'],
-    ['18 14', 'ambiguous:18 14|18 1 4|1 8 14'],
+    ['18 14', 'ok:18 1 4'],                             // scelta: divide l'ultimo numero
     ['Triplo 17 tre doppia 12', 'ok:T17 3 D12'],
     ['Mezzo centro 20 uno', 'ok:25 20 1'],
     ['14912', 'ok:14 9 12'],
@@ -99,9 +99,34 @@
   T.eq(P('2016'), 'partial:20 16', '«2016» = 20 e 16 (prima in 2 pezzi)');
   T.eq(P('doppio 2016 5'), 'ok:D20 16 5', '«doppio 2016 5»: il doppio va al primo pezzo');
   T.eq(P('11920'), 'ambiguous:1 19 20|11 9 20', '«11920»: due divisioni possibili = chiede');
-  T.eq(P('20 18'), 'ambiguous:20 18|20 1 8', '«20 18» con 3 tiri da fare = chiede');
+  T.eq(P('20 18'), 'ok:20 1 8', '«20 18» con 3 tiri da fare = 20, 1, 8');
   T.eq(P('venti diciotto'), 'partial:20 18', 'detto a parole: non si divide');
   T.eq(P('18 14', ctx(2)), 'ok:18 14', 'mancano 2 tiri: «18 14» = 18 e 14');
   T.eq(P('14', ctx(1)), 'ok:14', 'manca 1 tiro: «14» = 14');
   T.eq(P('doppio 14 3'), 'partial:D14 3', 'dopo «doppio» il numero non si divide');
+
+  // seconda prova sull'iPhone (Safari, «Sempre in ascolto», 2026-11-19)
+  T.group('voce vera iPhone 2');
+  const real2 = [
+    [['Proventi cinque doppio 16', 'Riprovanti cinque doppio 16', 'Pro 20 cinque doppio 16'], 'ok:T20 5 D16'],
+    [['125 fuori', 'Centro25 fuori', 'Entro25 fuori'], 'ok:Bull 25 0'],   // vince l'ipotesi chiara, non quella in dubbio
+    ['Entro25 fuori', 'ok:Bull 25 0'],
+    ['125 fuori', 'ambiguous:1 25 0|12 5 0'],
+    [['Doppio 10', 'Do doppio 10'], 'partial:D10'],
+    [['11 15 10', '11:15 10', '11 15:10', '11 e 15:10'], 'ok:11 15 10'],
+    [['21913', 'Due1913', '219:13'], 'ok:2 19 13'],
+    ['Due1913', 'ok:2 19 13'],
+    ['219:13', 'ok:2 19 13'],
+    [['Libro 18 otto doppio 20', '18 otto doppio 20'], 'ok:T18 8 D20'],
+    [['Triplo 20 cinque doppio 16', 'Triplo 20 25 doppio 16'], 'ok:T20 5 D16'],
+    ['Tripla 17 tre doppia 12', 'ok:T17 3 D12'],
+  ];
+  real2.forEach((c) => T.eq(P(c[0]), c[1], '«' + [].concat(c[0]).join(' | ') + '»'));
+  // come si parla di solito: «zero» o «0» = fuori, «bull» = 50, «25» = 25
+  T.eq(P('20 0 0'), 'ok:20 0 0', '«20 0 0»');
+  T.eq(P('2000'), 'ok:20 0 0', '«2000» = 20, 0, 0 (zeri attaccati)');
+  T.eq(P('200 20'), 'ok:20 0 20', '«200 20» = 20, 0, 20');
+  T.eq(P('0 bull 25'), 'ok:0 Bull 25', '«0 bull 25»');
+  T.eq(P('bull bull bull'), 'ok:Bull Bull Bull', '«bull bull bull»');
+  T.eq(P('zero zero zero'), 'ok:0 0 0', '«zero zero zero»');
 })();
