@@ -65,4 +65,43 @@
   T.eq(P('25', ctx(1)), 'ok:25', 'manca 1 tiro: «25» = 25');
   T.eq(P(['tripla venti cinque doppio', 'triplo venti cinque doppio sedici']), 'ok:T20 5 D16', 'seconda ipotesi se la prima non va');
   T.eq(P(['triplo venti', 'triplo venti cinque doppio sedici']), 'ok:T20 5 D16', 'ipotesi completa prima di quella a metà');
+
+  // prova vera sull'iPhone (Safari iOS 18, 2026-11-19): testi esatti del riconoscitore
+  T.group('voce vera iPhone');
+  const real = [
+    [['Libro 20 cinque doppio 16', 'Triplo 20 cinque doppio 16', 'Proventi cinque doppio 16', 'Pro 20 cinque doppio 16'], 'ok:T20 5 D16'],
+    [['Proventi cinque doppio 16', 'Triplo 20 cinque doppio 16'], 'ok:T20 5 D16'],
+    [['Vitro 20 cinque doppio 16', 'Triplo 20 cinque doppio 16'], 'ok:T20 5 D16'],   // vince l'ipotesi senza parole strane
+    ['Libro 19 sette doppio otto', 'ok:T19 7 D8'],
+    ['Pro 20 cinque doppio 16', 'ok:T20 5 D16'],
+    ['20 20 20', 'ok:20 20 20'],
+    ['Centro 25 fuori', 'ok:Bull 25 0'],
+    ['Doppio 10', 'partial:D10'],
+    ['666', 'ok:6 6 6'],
+    ['Triplo 20 triplo 20 triplo 20', 'ok:T20 T20 T20'],
+    ['18 14', 'ambiguous:18 14|18 1 4|1 8 14'],
+    ['Triplo 17 tre doppia 12', 'ok:T17 3 D12'],
+    ['Mezzo centro 20 uno', 'ok:25 20 1'],
+    ['14912', 'ok:14 9 12'],
+    ['Doppio 16 doppio otto', 'partial:D16 D8'],
+    ['11 15 10', 'ok:11 15 10'],
+    ['Fuori fuori 20', 'ok:0 0 20'],
+    ['Triplo 13 16 doppio quattro', 'ok:T13 16 D4'],
+    ['Annulla', 'cmd:undo'],
+    ['25 55', 'ok:25 5 5'],
+    ['21913', 'ok:2 19 13'],
+    ['Triplo 18 otto doppio 20', 'ok:T18 8 D20'],
+    [['Pool', 'Bull'], 'partial:Bull'],
+    ['Pool', 'partial:Bull'],
+  ];
+  real.forEach((c) => T.eq(P(c[0]), c[1], '«' + [].concat(c[0]).join(' | ') + '»'));
+  // cifre attaccate e numeri a due cifre: niente sorprese
+  T.eq(P('2016'), 'partial:20 16', '«2016» = 20 e 16 (prima in 2 pezzi)');
+  T.eq(P('doppio 2016 5'), 'ok:D20 16 5', '«doppio 2016 5»: il doppio va al primo pezzo');
+  T.eq(P('11920'), 'ambiguous:1 19 20|11 9 20', '«11920»: due divisioni possibili = chiede');
+  T.eq(P('20 18'), 'ambiguous:20 18|20 1 8', '«20 18» con 3 tiri da fare = chiede');
+  T.eq(P('venti diciotto'), 'partial:20 18', 'detto a parole: non si divide');
+  T.eq(P('18 14', ctx(2)), 'ok:18 14', 'mancano 2 tiri: «18 14» = 18 e 14');
+  T.eq(P('14', ctx(1)), 'ok:14', 'manca 1 tiro: «14» = 14');
+  T.eq(P('doppio 14 3'), 'partial:D14 3', 'dopo «doppio» il numero non si divide');
 })();

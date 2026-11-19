@@ -98,6 +98,8 @@
     };
     r.onerror = (e) => log('errore: ' + e.error);
     r.onend = () => {
+      // fine di un ascolto vecchio (fermato da un nuovo tocco): non deve spegnere quello nuovo
+      if (rec !== r) { log('end (vecchio)'); if (!rec) paint(); return; }
       log('end'); rec = null;
       if (want && cont) {
         try { rec = make(); rec.start(); restarts++; log('ripartito da solo (' + restarts + ')'); }
