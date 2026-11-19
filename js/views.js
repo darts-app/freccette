@@ -54,6 +54,11 @@
     const inL = (id) => s.lineup.indexOf(id) >= 0;
     const seg = (k, opts) => `<div class="seg">${opts.map((o) => `<button class="${String(s[k]) === String(o[0]) ? 'on' : ''}" data-act="set" data-k="${k}" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>`;
     const row = (label, small, ctl) => `<div class="set"><span>${label}${small ? `<small>${small}</small>` : ''}</span>${ctl}</div>`;
+    // numero libero con − / +; i set vanno da «No» (0) a 13, saltando 1 (un set solo = senza set)
+    const step = (k, label, small, min, max) => `<div class="set"><span>${label}${small ? `<small>${small}</small>` : ''}</span><div class="step">
+      <button data-act="step" data-k="${k}" data-d="-1" ${s[k] <= min ? 'disabled' : ''} aria-label="Meno">−</button><b class="num">${k === 'sets' && !s[k] ? 'No' : s[k]}</b>
+      <button data-act="step" data-k="${k}" data-d="1" ${s[k] >= max ? 'disabled' : ''} aria-label="Più">+</button></div></div>`;
+    const mode = (k) => `<div class="sub2">${seg(k, [['best', 'Al meglio di'], ['first', 'Primo a']])}</div>`;
     const group = (label, right, inner) => `<section class="group"><div class="ghead"><span class="t-label">${label}</span>${right || ''}</div>${inner}</section>`;
     let h = top('Nuova partita', true);
     h += group('Giocatori · in ordine di tiro', `<span class="cnt">${line.length} di 4</span>`, '<div class="list">' + (line.length
@@ -68,15 +73,21 @@
     h += group('Regole', '', '<div class="list">' + row('Punteggio', '', seg('start', [[501, '501'], [301, '301']])) +
       row('Apertura', 'come si inizia a contare', seg('in', [['straight', 'Normale'], ['double', 'Double in']])) +
       row('Chiusura', 'come si finisce', seg('out', [['double', 'Doppio'], ['single', 'Libera']])) +
-      row('Leg', 'al meglio di', seg('legs', [[1, '1'], [3, '3'], [5, '5'], [7, '7']])) +
-      row('Set', 'al meglio di', seg('sets', [[0, 'No'], [3, '3'], [5, '5']])) + '</div>');
+      step('legs', 'Leg', s.sets ? 'in ogni set' : '', 1, 21) + mode('legsMode') +
+      step('sets', 'Set', '', 0, 13) + (s.sets ? mode('setsMode') : '') + '</div>');
     h += group('Voce', '', '<div class="list">' + row('Microfono', '', seg('listen', [['tap', 'Un tocco'], ['always', 'Sempre']])) + '</div>');
     h += `<div class="foot"><p class="summary">${A.rules(s)}</p><button class="btn big" data-act="start" ${line.length ? '' : 'disabled'}>Inizia</button></div>`;
     return h;
   };
   acts.set = (el) => {
     const k = el.dataset.k;
-    A.data.settings[k] = (k === 'out' || k === 'listen' || k === 'in') ? el.dataset.v : +el.dataset.v;
+    A.data.settings[k] = ['out', 'listen', 'in', 'legsMode', 'setsMode'].indexOf(k) >= 0 ? el.dataset.v : +el.dataset.v;
+    A.persist(); A.render();
+  };
+  acts.step = (el) => {
+    const s = A.data.settings, k = el.dataset.k, d = +el.dataset.d;
+    if (k === 'legs') s.legs = Math.max(1, Math.min(21, s.legs + d));
+    else { let v = s.sets + d; if (v === 1) v = d > 0 ? 2 : 0; s.sets = Math.max(0, Math.min(13, v)); }
     A.persist(); A.render();
   };
   // tocco su un amico o un bot: entra in partita, oppure esce se c'era già
@@ -127,7 +138,7 @@
     const s = A.data.settings;
     const players = s.lineup.map(A.playerById).filter(Boolean).map((p) => (p.bot ? { id: p.id, name: p.name, bot: p.bot } : { id: p.id, name: p.name }));
     if (!players.length) return;
-    D.play.create({ start: s.start, in: s.in || 'straight', out: s.out, legs: s.legs, sets: s.sets, players: players });
+    D.play.create({ start: s.start, in: s.in || 'straight', out: s.out, legs: s.legs, legsMode: s.legsMode || 'best', sets: s.sets, setsMode: s.setsMode || 'best', players: players });
   };
 
   /* ---------- Giocatori ---------- */

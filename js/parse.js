@@ -105,7 +105,7 @@
   }
 
   const key = (ds) => ds.map(B.label).join(' ');
-  // alts = ipotesi del riconoscitore; ctx = { need: tiri mancanti, ends(tiri) → indice di fine turno o -1 }
+  // alts = ipotesi del riconoscitore; ctx = { need: tiri mancanti, ends(tiri) → indice di fine turno o -1, busts(tiri) → è sballo? (facoltativo) }
   function choose(alts, ctx) {
     let partial = null, partialTk = null, amb = null;
     const isFull = (c) => { if (c.length > ctx.need) return false; const e = ctx.ends(c); return e === c.length - 1 || (e === -1 && c.length === ctx.need); };
@@ -114,7 +114,10 @@
     for (const { p } of ps) {
       if (p.cmd) return { kind: 'cmd', cmd: p.cmd };
       const complete = [], seen = {};
-      p.cands.forEach((c) => {
+      p.cands.forEach((c0) => {
+        // sballo a metà turno: si dicono lo stesso tutti e 3 i tiri, valgono quelli fino allo sballo (ctx.busts dice se è sballo)
+        let c = c0;
+        if (ctx.busts) { const e0 = ctx.ends(c); if (e0 >= 0 && e0 < c.length - 1 && ctx.busts(c.slice(0, e0 + 1))) c = c.slice(0, e0 + 1); }
         if (c.length > ctx.need) return;
         const e = ctx.ends(c);
         if (isFull(c)) { if (!seen[key(c)]) { seen[key(c)] = 1; complete.push(c); } }

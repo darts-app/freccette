@@ -34,6 +34,18 @@
   T.eq([st.cur, st.rem], [1, [99, 100, 100]], 'tre giocatori a giro');
   T.eq(G.toWin(5), 3, 'al meglio di 5 = 3 vinte');
 
+  T.group('leg e set personali');
+  T.eq([G.legsToWin({ legs: 4, legsMode: 'first' }), G.legsToWin({ legs: 4 }), G.legsToWin({ legs: 7, legsMode: 'best' })], [4, 3, 4], 'primo a 4 = 4; al meglio di 4 = 3; al meglio di 7 = 4');
+  T.eq([G.setsToWin({ sets: 3, setsMode: 'first' }), G.setsToWin({ sets: 5 })], [3, 3], 'set: primo a 3 = 3; al meglio di 5 = 3');
+  const first2 = Object.assign({}, cfg, { legs: 2, legsMode: 'first' });
+  st = G.replay(first2, [win, win]);
+  T.eq([st.done, st.legsWon], [false, [1, 1]], 'primo a 2: 1-1 non è finita');
+  st = G.replay(first2, [win, win, win]);
+  T.eq([st.done, st.winner], [true, 0], 'primo a 2: 2-1 finita');
+  const fs = Object.assign({}, cfg, { legs: 1, sets: 2, setsMode: 'first' });
+  st = G.replay(fs, [win, win]);
+  T.eq([st.done, st.setsWon], [false, [1, 1]], 'primo a 2 set (1 leg per set): 1-1 non è finita');
+
   T.group('double in');
   const S5 = d(5, 1), BULL = d(25, 2), S25 = d(25, 1);
   T.eq(G.applyTurn(501, [T20, D20, S5], 'double', false), { after: 456, bust: false, win: false, used: 3 }, 'T20 non conta, D20 apre, poi 5');

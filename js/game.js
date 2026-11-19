@@ -26,6 +26,9 @@
     return { after: s, bust: false, win: false, used: darts.length };
   }
   const toWin = (n) => Math.floor(n / 2) + 1;
+  // leg e set: «al meglio di n» (legsMode/setsMode mancante o 'best') oppure «primo a n» ('first')
+  const legsToWin = (cfg) => (cfg.legsMode === 'first' ? cfg.legs : toWin(cfg.legs));
+  const setsToWin = (cfg) => (cfg.setsMode === 'first' ? cfg.sets : toWin(cfg.sets));
   // partito? Con Double in si parte al primo doppio: da lì il punteggio non torna più al valore iniziale
   const isOpen = (cfg, rem) => cfg.in !== 'double' || rem !== cfg.start;
   // cfg = { start, in: 'straight'|'double' (manca = normale), out: 'double'|'single', legs, sets (0 = senza set), players: [...] }; turns = [{ darts }]
@@ -49,13 +52,13 @@
       st.rem[p] = r.after;
       if (!r.win) { st.cur = (p + 1) % P; continue; }
       leg.winner = p; st.legsWon[p]++; legNo++;
-      if (st.legsWon[p] < toWin(cfg.legs)) { st.leg++; newLeg(); continue; }
+      if (st.legsWon[p] < legsToWin(cfg)) { st.leg++; newLeg(); continue; }
       if (!cfg.sets) { st.done = true; st.winner = p; break; }
       st.setsWon[p]++;
-      if (st.setsWon[p] >= toWin(cfg.sets)) { st.done = true; st.winner = p; break; }
+      if (st.setsWon[p] >= setsToWin(cfg)) { st.done = true; st.winner = p; break; }
       st.set++; st.leg = 0; st.legsWon = Array(P).fill(0); newLeg();
     }
     return st;
   }
-  D.game = { turnEnd, applyTurn, replay, toWin, isOpen };
+  D.game = { turnEnd, applyTurn, replay, toWin, legsToWin, setsToWin, isOpen };
 })(globalThis.D = globalThis.D || {});

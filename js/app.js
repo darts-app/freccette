@@ -1,7 +1,7 @@
 /* App freccette: dati, schermate, menu, finestrelle, backup, aggiornamenti. */
 (function (D) {
   'use strict';
-  const VERSION = '0.2.1';                                  // tenere uguale a VERSION in sw.js
+  const VERSION = '0.3.0';                                  // tenere uguale a VERSION in sw.js
   const $ = (id) => document.getElementById(id);
   const root = $('app'), body = document.body;
   const ls = (() => { try { return window.localStorage; } catch (e) { return { getItem() { return null; }, setItem() {} }; } })();
@@ -12,8 +12,8 @@
   const A = D.app = {
     VERSION: VERSION,
     data: D.store.load(ls),
-    view: 'home',     // home (con menu) | nuova | partita | fine | giocatore | dettaglio
-    tab: 'gioca',     // gioca | giocatori | storico
+    view: 'home',     // home (con menu) | nuova | partita | fine | giocatore | dettaglio | allenamento | allfine
+    tab: 'gioca',     // gioca | allena | giocatori | storico
     sel: null,        // id del giocatore o della partita aperta
     wantReload: false,
     persist() { D.store.save(ls, A.data); },
@@ -25,8 +25,9 @@
     gioca: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/></svg>',
     giocatori: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg>',
     storico: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>',
+    allena: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>',
   };
-  const TABS = [{ k: 'gioca', name: 'Gioca' }, { k: 'giocatori', name: 'Giocatori' }, { k: 'storico', name: 'Storico' }];
+  const TABS = [{ k: 'gioca', name: 'Gioca' }, { k: 'allena', name: 'Allenamento' }, { k: 'giocatori', name: 'Giocatori' }, { k: 'storico', name: 'Storico' }];
 
   function render() {
     const tabs = A.view === 'home';
@@ -36,7 +37,7 @@
     $('tabbar').hidden = !tabs;
     if (tabs) $('tabbar').innerHTML = TABS.map((t) => `<button class="${t.k === A.tab ? 'on' : ''}" data-act="tab" data-k="${t.k}">${ICON[t.k]}<span>${t.name}</span></button>`).join('');
     root.scrollTop = 0;
-    if (A.wantReload && A.view !== 'partita') location.reload();
+    if (A.wantReload && A.view !== 'partita' && A.view !== 'allenamento') location.reload();
   }
 
   // Giocatori: umani salvati + bot (id «bot1»…«bot5»)
@@ -60,6 +61,14 @@
     plus: '<path d="M12 5v14M5 12h14"/>',
     play: '<path d="M8 5v14l11-7z"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    bksp: '<path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/>',
+    dumb: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    two: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="6.5"/>',
+    three: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>',
+    heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+    flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    bolt: '<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>',
   };
   D.icon = (k, cls) => `<svg class="i ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${PATH[k]}</svg>`;
   // Tondo del giocatore: un colore fisso per persona (dall'ordine di creazione), iniziale; i bot hanno il robot grigio
@@ -71,8 +80,10 @@
   };
   A.avatar = (p, size) => `<span class="av ${size || ''} ${A.tint(p)}">${p.bot ? D.icon('robot') : esc(String(p.name || '?').trim().charAt(0).toUpperCase())}</span>`;
   // regole in breve: «501 · double in · double out · al meglio di 3 leg»
-  A.rules = (c) => [c.start, c.in === 'double' ? 'double in' : '', c.out === 'double' ? 'double out' : 'chiusura libera',
-    c.sets ? 'al meglio di ' + c.sets + ' set' : 'al meglio di ' + c.legs + ' leg'].filter(Boolean).join(' · ');
+  // short = per la testata della partita (senza «double out», che è il normale)
+  const howMany = (n, mode, what) => (mode === 'first' ? 'primo a ' : 'al meglio di ') + n + ' ' + what;
+  A.rules = (c, short) => [c.start, c.in === 'double' ? 'double in' : '', c.out === 'double' ? (short ? '' : 'double out') : 'chiusura libera',
+    c.sets ? howMany(c.sets, c.setsMode, 'set') + (short ? '' : ' · set ' + howMany(c.legs, c.legsMode, 'leg')) : howMany(c.legs, c.legsMode, 'leg')].filter(Boolean).join(' · ');
 
   // Finestrelle
   let onOk = null, onAsk = null;
@@ -138,7 +149,7 @@
       try {
         const r = D.store.importJSON(A.data, rd.result);
         A.persist(); render();
-        A.confirm(`Importati: ${r.players} giocatori e ${r.matches} partite.`, 'Ok', null);
+        A.confirm(`Importati: ${r.players} giocatori, ${r.matches} partite e ${r.trainings} allenamenti.`, 'Ok', null);
       } catch (err) { A.confirm('Questo file non è un backup delle freccette.', 'Ok', null); }
     };
     rd.readAsText(f);
@@ -158,7 +169,7 @@
     }).catch(() => {});
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!had) return;
-      if (A.view === 'partita') A.wantReload = true; else location.reload();
+      if (A.view === 'partita' || A.view === 'allenamento') A.wantReload = true; else location.reload();
     });
   }
 

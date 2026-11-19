@@ -89,6 +89,7 @@
     const r = D.parse.choose(alts, {
       need: full ? 0 : 3 - pend.length,
       ends: (c) => { const e = G.turnEnd(base, pend.concat(c), m.cfg.out, op); return e < 0 ? -1 : e - pend.length; },
+      busts: (c) => G.applyTurn(base, pend.concat(c), m.cfg.out, op).bust,
     });
     if (r.kind === 'cmd') {
       D.voice.beep(true);
@@ -151,6 +152,22 @@
     next();
   };
   acts.fixok = () => { fixing = false; commit(); };
+  // ⌫ Indietro: ogni tocco cancella un tiro; a turno vuoto riapre l'ultimo turno di una persona senza il suo ultimo tiro
+  acts.back = () => {
+    if (busy) return;
+    clearTimeout(confirmT); confirmT = 0; mult = 1; msg = '';
+    if (pending.length) { pending = pending.slice(0, -1); fixing = false; A.render(); return; }
+    fixing = false;
+    let back = null;
+    while (m.turns.length) {
+      const p = lastP(st);
+      const t = m.turns.pop(); refresh();
+      if (p >= 0 && !m.cfg.players[p].bot) { back = t.darts.slice(0, -1); break; }
+    }
+    m.done = false; m.winner = -1; A.persist();
+    pending = back || [];
+    next();
+  };
   acts.undo = acts.fix;
   acts.undoEnd = () => { A.view = 'partita'; keepAwake(); acts.fix(); };
   acts.exit = () => {
@@ -162,7 +179,7 @@
     create(rematchCfg(c));
   };
   // rivincita: stesse regole, inizia il giocatore dopo
-  function rematchCfg(c) { return { start: c.start, in: c.in || 'straight', out: c.out, legs: c.legs, sets: c.sets, players: c.players.slice(1).concat(c.players.slice(0, 1)) }; }
+  function rematchCfg(c) { return { start: c.start, in: c.in || 'straight', out: c.out, legs: c.legs, legsMode: c.legsMode || 'best', sets: c.sets, setsMode: c.setsMode || 'best', players: c.players.slice(1).concat(c.players.slice(0, 1)) }; }
 
   /* ---------- Schermo acceso durante la partita ---------- */
   async function keepAwake() {
@@ -198,7 +215,7 @@
       const on = i === st.cur;
       const darts = leg.turns.reduce((a, t) => a + (t.p === i ? t.darts.length : 0), 0) + (on ? pending.length : 0);
       const sc = on ? (bust ? 'Sballo' : now) : st.rem[i];
-      const pp = (c.sets ? pips('Set', st.setsWon[i], G.toWin(c.sets)) : '') + (c.legs > 1 || c.sets ? pips('Leg', st.legsWon[i], G.toWin(c.legs)) : '');
+      const pp = (c.sets ? pips('Set', st.setsWon[i], G.setsToWin(c)) : '') + (G.legsToWin(c) > 1 || c.sets ? pips('Leg', st.legsWon[i], G.legsToWin(c)) : '');
       return `<div class="pc ${on ? 'on' : ''}"><span class="nm">${A.avatar(p, 'xs')}<span class="nmt">${esc(p.name)}</span>${on ? '<span class="dot"></span>' : ''}</span>
         <b class="sc num ${on && bust ? 'bust' : ''}">${sc}</b><span class="co ${on && !openNow ? 'need' : ''}">${on && hint ? hint : '&nbsp;'}</span>
         <div class="pips">${pp}</div><div class="avg"><span>media <b class="num">${num(D.stats.matchAvg(st, i) || '–')}</b></span><span>frecce <b class="num">${darts}</b></span></div></div>`;
@@ -219,14 +236,14 @@
       `<button class="key m ${mult === 2 ? 'on' : ''}" data-act="mult" data-v="2">D</button><button class="key m ${mult === 3 ? 'on' : ''}" data-act="mult" data-v="3">T</button>`;
     const canFix = !busy && (pending.length > 0 || m.turns.length > 0);
     const fixBtn = fixing ? `<button class="btn1" data-act="fixok">${D.icon('check')}Conferma</button>`
-      : `<button class="btn2" data-act="fix" ${canFix ? '' : 'disabled'}>${D.icon('undo')}Correggi turno</button>`;
-    return `<header class="ptop"><button class="x" data-act="exit">‹ Esci</button><div class="mid"><b>${where}</b><span>${[c.start, c.in === 'double' ? 'double in' : '', c.out === 'double' ? '' : 'chiusura libera', 'al meglio di ' + (c.sets ? c.sets + ' set' : c.legs + ' leg')].filter(Boolean).join(' · ')}</span></div>
+      : `<button class="btn2" data-act="back" ${canFix ? '' : 'disabled'}>${D.icon('bksp')}Indietro</button>`;
+    return `<header class="ptop"><button class="x" data-act="exit">‹ Esci</button><div class="mid"><b>${where}</b><span>${A.rules(c, true)}</span></div>
         <button class="vbtn" data-act="vmode" aria-label="Cambia modo della voce">${D.icon('mic')}${always ? 'Sempre' : 'Un tocco'}</button></header>
       <div class="pcs n${P}">${cards}</div>
       <div class="slots">${slots}</div><p class="status">${status || '&nbsp;'}</p>
       <div class="micwrap">${voiceOk ? `<button class="mic ${vstate}" data-act="mic" aria-label="Parla">${D.icon('mic')}</button>` : ''}<p class="hint">${state}</p></div>
       <div class="pfoot">${human ? `<button class="btn2" data-act="pad">${D.icon('kbd')}Tastiera</button>` : '<span></span>'}${fixBtn}</div>
-      <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(who().name)}</b><span class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</span><em class="${!openNow ? 'need' : ''}">${hint}</em></div><div class="kslots">${slots}</div>${keys}${voiceOk ? '<button class="key close" data-act="pad">Chiudi</button>' : ''}</div>`;
+      <div class="kpad ${padOpen ? 'open' : ''}"><div class="khead"><b>${esc(who().name)}</b><span class="num ${bust ? 'bust' : ''}">${bust ? 'Sballo' : now}</span><em class="${!openNow ? 'need' : ''}">${hint}</em></div><div class="kslots">${slots}</div>${keys}<button class="key bk ${voiceOk ? '' : 'wide'}" data-act="back" aria-label="Cancella l'ultimo tiro">${D.icon('bksp')}</button>${voiceOk ? '<button class="key close" data-act="pad">Chiudi</button>' : ''}</div>`;
   };
   D.views.fine = function () {
     const c = m.cfg, w = c.players[st.winner];
@@ -239,5 +256,5 @@
       <button class="btn big" data-act="again">Rivincita</button>
       <div class="row2"><button class="btn ghost" data-act="undoEnd">${D.icon('undo')}Correggi turno</button><button class="btn ghost" data-act="exit">Home</button></div>`;
   };
-  D.play = { create, open, heard, rematchCfg };            // heard: anche per provare la voce dal Mac
+  D.play = { create, open, heard, rematchCfg, awake: (on) => (on ? keepAwake() : sleepOk()) };            // heard: anche per provare la voce dal Mac
 })(globalThis.D = globalThis.D || {});

@@ -2,7 +2,8 @@
   const B = D.board;
   // fine turno con chiusura doppio, come nel gioco (copia semplice per non dipendere da game.js)
   const endsFor = (rem) => (ds) => { let s = rem; for (let i = 0; i < ds.length; i++) { s -= B.score(ds[i]); if (s <= 1) return i; } return -1; };
-  const ctx = (need, rem) => ({ need: need, ends: endsFor(rem || 501) });
+  const bustsFor = (rem) => (ds) => { let s = rem; for (const d of ds) s -= B.score(d); return s < 0 || s === 1 || (s === 0 && !B.isDouble(ds[ds.length - 1])); };
+  const ctx = (need, rem) => ({ need: need, ends: endsFor(rem || 501), busts: bustsFor(rem || 501) });
   const S = (ds) => ds.map(B.label).join(' ');
   function P(alts, c) {
     const r = D.parse.choose(Array.isArray(alts) ? alts : [alts], c || ctx(3));
@@ -59,7 +60,10 @@
   T.eq(P('doppio sedici', ctx(3, 32)), 'ok:D16', '32: «doppio sedici» chiude');
   T.eq(P('cinque', ctx(3, 32)), 'partial:5', '32: «cinque» = turno a metà');
   T.eq(P('triplo venti', ctx(3, 40)), 'ok:T20', '40: «triplo venti» sballa con 1 freccetta');
-  T.eq(P('triplo venti cinque cinque', ctx(3, 40)), 'none', '40: tiri dopo lo sballo = non valido');
+  T.eq(P('triplo venti cinque cinque', ctx(3, 40)), 'ok:T20', '40: si dicono tutti e 3 i tiri ma sballa al primo = sballo');
+  T.eq(P('venti venti venti', ctx(3, 30)), 'ok:20 20', '30: «venti venti venti» sballa al secondo');
+  T.eq(P('diciannove venti uno', ctx(3, 40)), 'ok:19 20', '40: 19 e 20 lasciano 1 = sballo');
+  T.eq(P('doppio sedici venti', ctx(3, 32)), 'none', '32: dopo la chiusura non si tira: non valido');
   T.eq(P('venticinque doppio dieci', ctx(3, 45)), 'ambiguous:25 D10|20 5 D10', '45: «venticinque doppio dieci» chiede');
   T.eq(P('venti', ctx(1)), 'ok:20', 'manca 1 tiro: «venti»');
   T.eq(P('25', ctx(1)), 'ok:25', 'manca 1 tiro: «25» = 25');

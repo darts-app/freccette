@@ -17,7 +17,12 @@
   other.players.push({ id: 'p1', name: 'Anna' }, { id: 'p2', name: 'Bruno' });
   other.matches.push({ id: 'm1', created: 1, cfg: { players: [] }, turns: [], done: true }, { id: 'm0', created: 0, cfg: { players: [] }, turns: [], done: true });
   const res = S.importJSON(data, S.exportJSON(other, 5));
-  T.eq([res, data.players.length, data.matches.map((m) => m.id)], [{ players: 1, matches: 1 }, 2, ['m0', 'm1', 'm2']], 'importa senza doppioni');
+  T.eq([res, data.players.length, data.matches.map((m) => m.id)], [{ players: 1, matches: 1, trainings: 0 }, 2, ['m0', 'm1', 'm2']], 'importa senza doppioni');
+  other.trainings.push({ id: 't1', created: 3, drill: 'world', player: 'p1', turns: [], done: true, result: 40 });
+  const r2 = S.importJSON(data, S.exportJSON(other, 6));
+  T.eq([r2.trainings, data.trainings.map((t) => t.id), S.importJSON(data, S.exportJSON(other, 7)).trainings], [1, ['t1'], 0], 'backup con gli allenamenti, senza doppioni');
+  const old = JSON.stringify({ app: 'freccette', v: 1, at: 1, players: [], matches: [] });
+  T.eq(S.importJSON(S.fresh(), old).trainings, 0, 'backup vecchio senza allenamenti: va bene');
   let err = '';
   try { S.importJSON(data, '{"app":"sport"}'); } catch (e) { err = e.message; }
   T.eq(err, 'file', 'file di un\'altra app rifiutato');
