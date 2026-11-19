@@ -1,3 +1,3 @@
 /* Elenco dei file da caricare nei test (in ordine). Ogni passo aggiunge i suoi. */
-var SRC = ['js/board.js', 'js/checkout.js', 'js/parse.js'];
-var TESTS = ['tests/board.test.js', 'tests/checkout.test.js', 'tests/parse.test.js'];
+var SRC = ['js/board.js', 'js/checkout.js', 'js/parse.js', 'js/game.js'];
+var TESTS = ['tests/board.test.js', 'tests/checkout.test.js', 'tests/parse.test.js', 'tests/game.test.js'];
