@@ -229,7 +229,8 @@
       const on = i === st.cur;
       const darts = leg.turns.reduce((a, t) => a + (t.p === i ? t.darts.length : 0), 0) + (on ? pending.length : 0);
       const sc = on ? (bust ? 'Sballo' : now) : st.rem[i];
-      const pp = (c.sets ? pips('Set', st.setsWon[i], G.setsToWin(c)) : '') + (G.legsToWin(c) > 1 || c.sets ? pips('Leg', st.legsWon[i], G.legsToWin(c)) : '');
+      // set e leg sempre in vista (senza set: «Set –»)
+      const pp = (c.sets ? pips('Set', st.setsWon[i], G.setsToWin(c)) : '<span class="pip">Set <em>–</em></span>') + pips('Leg', st.legsWon[i], G.legsToWin(c));
       const lt = lastOf(i);
       const last = on && hint ? `<span class="co ${!openNow ? 'need' : ''}">${hint}</span>`
         : lt ? `<span class="lbl">${P >= 3 ? 'ultimo' : 'ultimo turno'}</span>${lt.darts.map((d) => `<span class="d">${B.label(d)}</span>`).join('')}<b>${lt.bust ? 'sballo' : '= ' + (lt.before - lt.after)}</b>` : '';

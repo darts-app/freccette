@@ -1,7 +1,7 @@
 /* App freccette: dati, schermate, menu, finestrelle, backup, aggiornamenti. */
 (function (D) {
   'use strict';
-  const VERSION = '0.4.0';                                  // tenere uguale a VERSION in sw.js
+  const VERSION = '0.4.1';                                  // tenere uguale a VERSION in sw.js
   const $ = (id) => document.getElementById(id);
   const root = $('app'), body = document.body;
   const ls = (() => { try { return window.localStorage; } catch (e) { return { getItem() { return null; }, setItem() {} }; } })();

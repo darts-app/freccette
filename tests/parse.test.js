@@ -22,7 +22,7 @@
     ['centro, 25, fuori', 'ok:Bull 25 0'],
     ['bull 20 1', 'ok:Bull 20 1'],
     ['mezzo centro 20 20', 'ok:25 20 20'],
-    ['venticinque cinque', 'ok:20 5 5'],
+    ['venticinque cinque', 'partial:25 5'],                // «25» vale 25 (prima era 20 e 5)
     ['25', 'partial:25'],
     ['fuori fuori fuori', 'ok:0 0 0'],
     ['zero, zero, venti', 'ok:0 0 20'],
@@ -64,7 +64,7 @@
   T.eq(P('venti venti venti', ctx(3, 30)), 'ok:20 20', '30: «venti venti venti» sballa al secondo');
   T.eq(P('diciannove venti uno', ctx(3, 40)), 'ok:19 20', '40: 19 e 20 lasciano 1 = sballo');
   T.eq(P('doppio sedici venti', ctx(3, 32)), 'none', '32: dopo la chiusura non si tira: non valido');
-  T.eq(P('venticinque doppio dieci', ctx(3, 45)), 'ambiguous:25 D10|20 5 D10', '45: «venticinque doppio dieci» chiede');
+  T.eq(P('venticinque doppio dieci', ctx(3, 45)), 'ok:25 D10', '45: «venticinque doppio dieci» = 25 e D10, chiude');
   T.eq(P('venti', ctx(1)), 'ok:20', 'manca 1 tiro: «venti»');
   T.eq(P('25', ctx(1)), 'ok:25', 'manca 1 tiro: «25» = 25');
   T.eq(P(['tripla venti cinque doppio', 'triplo venti cinque doppio sedici']), 'ok:T20 5 D16', 'seconda ipotesi se la prima non va');
@@ -133,6 +133,13 @@
   T.eq(P('0 bull 25'), 'ok:0 Bull 25', '«0 bull 25»');
   T.eq(P('bull bull bull'), 'ok:Bull Bull Bull', '«bull bull bull»');
   T.eq(P('zero zero zero'), 'ok:0 0 0', '«zero zero zero»');
+  // «25» = 25: mai più 20 e 5 se il 25 ha senso (anche a metà frase, con la risposta veloce)
+  T.eq(P('25 20'), 'partial:25 20', '«25 20» = 25 e 20, manca il terzo (non 20 5 20)');
+  T.eq(P('venticinque venti venti'), 'ok:25 20 20', '«venticinque venti venti»');
+  T.eq(P('20 25'), 'partial:20 25', '«20 25» = 20 e 25');
+  T.eq(P('doppio 25 venti'), 'partial:Bull 20', '«doppio 25» = bull');
+  T.eq(P('triplo 25'), 'partial:T20 5', '«triplo 25» resta T20 e 5 (il T25 non esiste)');
+  T.eq(P('25 25 25'), 'ok:25 25 25', '«25 25 25»');
   // «uno uno uno» scritto «111»: 3 cifre attaccate = 3 tiri da una cifra (prima di 1·11 o 11·1)
   T.eq(P('111'), 'ok:1 1 1', '«111» = 1, 1, 1');
   T.eq(P('111', ctx(3, 3)), 'ok:1 1', 'manca 3: «111» = 1, 1 → sballo');

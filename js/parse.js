@@ -64,7 +64,7 @@
     return out;
   }
 
-  // segni → letture possibili (liste di tiri). «25» può essere 25 oppure 20 e 5.
+  // segni → letture possibili (liste di tiri). «25» è 25; come ripiego (penalità 1) anche 20 e 5.
   const one = (v, mu) => (v === 0 ? B.MISS : v === 50 ? B.dart(25, 2) : B.dart(v, mu || 1));
   // ogni lettura porta una penalità (lettura.pen): a parità di turno completo vince quella con la penalità più bassa
   function readings(tk) {
@@ -91,14 +91,14 @@
           add(op.map((o) => ({ d: o.v.map((v, k) => one(v, k ? 1 : x.v)), p: o.p }))); continue;
         }
         if (n.t !== 'n' || n.v === 0 || n.v === 50) return [];
-        if (n.v === 25) add(x.v === 3 ? [[B.dart(20, 3), B.dart(5, 1)]] : [[B.dart(25, x.v)], [B.dart(20, x.v), B.dart(5, 1)]]);
+        if (n.v === 25) add(x.v === 3 ? [[B.dart(20, 3), B.dart(5, 1)]] : [[B.dart(25, x.v)], { d: [B.dart(20, x.v), B.dart(5, 1)], p: 1 }]);
         else add([[B.dart(n.v, x.v)]]);
         continue;
       }
       if (x.t === 'n') {
         if (x.v === 0) add([[B.MISS]]);
         else if (x.v === 50) add([[B.dart(25, 2)]]);
-        else if (x.v === 25) add([[B.dart(25, 1)], [B.dart(20, 1), B.dart(5, 1)]]);
+        else if (x.v === 25) add([[B.dart(25, 1)], { d: [B.dart(20, 1), B.dart(5, 1)], p: 1 }]);   // «25» = 25; 20 e 5 solo se non c'è altro
         else add([[B.dart(x.v, 1)]]);
       }
     }
@@ -131,7 +131,11 @@
         if (isFull(c)) { if (!seen[key(c)]) { seen[key(c)] = 1; complete.push(c); } }
         else if (e === -1 && !partial) { partial = c; partialTk = p.tk; }
       });
-      const low = complete.filter((c) => (c.pen || 0) === Math.min.apply(null, complete.map((x) => x.pen || 0)));
+      // un turno a metà letto «pulito» (penalità più bassa) vince su un turno completo letto di ripiego:
+      // «25 20» resta 25 e 20 (manca un tiro), non diventa 20 5 20
+      const halfPen = p.cands.filter((c) => c.length <= ctx.need && ctx.ends(c) === -1 && c.length < ctx.need).reduce((m, c) => Math.min(m, c.pen || 0), Infinity);
+      let low = complete.filter((c) => (c.pen || 0) === Math.min.apply(null, complete.map((x) => x.pen || 0)));
+      if (low.length && (low[0].pen || 0) > halfPen) low = [];
       if (low.length === 1) return { kind: 'ok', darts: low[0] };
       if (low.length > 1 && !amb) amb = low;       // in dubbio: prima si guarda se un'altra ipotesi è chiara («125 fuori» / «Centro25 fuori»)
     }
