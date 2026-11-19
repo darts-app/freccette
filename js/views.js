@@ -3,6 +3,9 @@
   'use strict';
   const A = D.app, esc = D.esc, acts = D.acts, B = D.board;
   const DAY = 86400000;
+  // frasi celebri delle freccette sotto «Nuova partita»: una a caso a ogni apertura dell'app
+  const QUOTES = ['One hundred and eightyyy!', 'Game shot, and the match!', 'Trebles for show, doubles for dough.'];
+  const QUOTE = QUOTES[Math.floor(Math.random() * QUOTES.length)];
   const fmt = (t) => new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) + ' · ' +
     new Date(t).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   const num = (x) => String(x).replace('.', ',');
@@ -58,9 +61,9 @@
     // i numeri di un giocatore (prima chi ha giocato di più); «Cambia» passa al prossimo
     const ss = d.players.map((p) => ({ p: p, s: D.stats.forPlayer(d.matches, p.id) })).filter((x) => x.s.darts).sort((a, b) => b.s.matches - a.s.matches);
     const empty = !cur && !last && !ss.length;
-    if (empty) h += `<div class="art">${art()}</div><div class="empty-t"><b>Pronto a lanciare?</b><span>Scegli chi gioca e di' i tiri a voce.</span></div>`;
+    if (empty) h += `<div class="art">${art()}</div><div class="empty-t"><b>Pronto a lanciare?</b><span>Scegli chi gioca e detta i tiri.</span></div>`;
     h += `<button class="btn ${cur || last ? 'ghost' : 'big'}" data-act="nuova">${D.icon('plus')}Nuova partita</button>`;
-    if (empty) h += '<p class="say">Prova a dire <q>triplo venti, cinque, doppio sedici</q></p>';
+    if (empty) h += `<p class="say"><q>${QUOTE}</q></p>`;
     if (ss.length) {
       const x = ss[(A.statIdx || 0) % ss.length], tile = (v, l) => `<div class="tile"><b class="num">${v}</b><span>${l}</span></div>`;
       h += `<div class="rowhead"><span class="t-label">I numeri di ${esc(x.p.name)}</span>${ss.length > 1 ? '<button class="link" data-act="statnext">Cambia</button>' : ''}</div>

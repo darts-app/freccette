@@ -161,7 +161,7 @@
     const voiceOk = vstate !== 'unsupported' && vstate !== 'denied';
     const always = A.data.settings.listen === 'always';
     const state = vstate === 'unsupported' ? 'Voce non disponibile: usa la tastiera' : vstate === 'denied' ? 'Microfono non permesso' :
-      vstate === 'listening' ? 'Ti ascolto…' : vstate === 'paused' ? 'Tocca per riprendere' : 'Tocca il microfono e di\' i tiri';
+      vstate === 'listening' ? 'Ti ascolto…' : vstate === 'paused' ? 'Tocca per riprendere' : 'Tocca il microfono e detta i tiri';
     const padOpen = A.data.settings.pad || !voiceOk;
     let keys = '';
     for (let n = 1; n <= 20; n++) keys += `<button class="key" data-act="dk" data-v="${n}">${n}</button>`;
