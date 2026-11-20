@@ -83,7 +83,7 @@
     ['Doppio 10', 'partial:D10'],
     ['666', 'ok:6 6 6'],
     ['Triplo 20 triplo 20 triplo 20', 'ok:T20 T20 T20'],
-    ['18 14', 'ok:18 1 4'],                             // scelta: divide l'ultimo numero
+    ['18 14', 'partial:18 14'],                         // 0.5.4: un numero detto non si divide più
     ['Triplo 17 tre doppia 12', 'ok:T17 3 D12'],
     ['Mezzo centro 20 uno', 'ok:25 20 1'],
     ['14912', 'ok:14 9 12'],
@@ -103,7 +103,7 @@
   T.eq(P('2016'), 'partial:20 16', '«2016» = 20 e 16 (prima in 2 pezzi)');
   T.eq(P('doppio 2016 5'), 'ok:D20 16 5', '«doppio 2016 5»: il doppio va al primo pezzo');
   T.eq(P('11920'), 'ambiguous:1 19 20|11 9 20', '«11920»: due divisioni possibili = chiede');
-  T.eq(P('20 18'), 'ok:20 1 8', '«20 18» con 3 tiri da fare = 20, 1, 8');
+  T.eq(P('20 18'), 'partial:20 18', '«20 18» = 20 e 18 (non si divide più)');
   T.eq(P('venti diciotto'), 'partial:20 18', 'detto a parole: non si divide');
   T.eq(P('18 14', ctx(2)), 'ok:18 14', 'mancano 2 tiri: «18 14» = 18 e 14');
   T.eq(P('14', ctx(1)), 'ok:14', 'manca 1 tiro: «14» = 14');
@@ -150,12 +150,18 @@
   T.eq(P('13', ctx(2)), 'partial:13', 'mancano 2 tiri: «13» resta 13');
   T.eq(P('18', ctx(2)), 'partial:18', 'mancano 2 tiri: «18» resta 18');
   T.eq(P('13', ctx(3)), 'partial:13', 'mancano 3 tiri: «13» resta 13');
-  T.eq(P('18 14'), 'ok:18 1 4', '«18 14» con 3 tiri: si divide ancora (2 tiri detti)');
+  T.eq(P('18 14'), 'partial:18 14', '«18 14» = 18 e 14');
+  T.eq(P('20 13'), 'partial:20 13', '«20 13» = 20 e 13, non 20 1 3');
+  T.eq(P(['13', '1 3'], ctx(2)), 'partial:13', 'prima ipotesi «13», riserva «1 3»: vale 13');
+  T.eq(P(['13', 'Uno tre'], ctx(2)), 'partial:13', 'prima ipotesi «13», riserva «uno tre»: vale 13');
+  T.eq(P(['20 13', '20 1 3']), 'partial:20 13', '«20 13» | «20 1 3»: vale 20 13');
+  T.eq(P(['Tredici', '1 3'], ctx(2)), 'partial:13', '«tredici» | «1 3»: vale 13');
   const Q = (alts, more, c) => { const r = D.parse.choose(alts, c || ctx(3), more); return r.kind + (r.darts ? ':' + S(r.darts) : ''); };
   T.eq(Q(['25'], ['20', '20 e 5'], ctx(2)), 'ok:20 5', 'finale «25», provvisorio «20 e 5», mancano 2 = 20 e 5');
   T.eq(Q(['25'], ['20', '20 e 5']), 'partial:20 5', 'finale «25», provvisorio «20 e 5», mancano 3 = 20 e 5');
   T.eq(Q(['25'], ['venti', '25']), 'partial:25', '«venticinque» detto di fila resta 25');
   T.eq(Q(['25'], []), 'partial:25', 'senza provvisori: 25');
+  T.eq(Q(['13'], ['1', '1 3'], ctx(2)), 'partial:13', 'finale «13», provvisorio «1 3»: vale 13');
   T.eq(Q(['triplo 20 5 doppio 16'], ['triplo 20']), 'ok:T20 5 D16', 'il finale completo vince sempre');
   T.eq(P('111', ctx(2)), 'ambiguous:1 11|11 1', 'mancano 2 tiri: «111» chiede');
   T.eq(P(['111', '1 1 1']), 'ok:1 1 1', '«111 | 1 1 1»');

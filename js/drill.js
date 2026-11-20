@@ -2,7 +2,7 @@
 (function (D) {
   'use strict';
   const A = D.app, esc = D.esc, acts = D.acts, B = D.board, TR = D.train;
-  const CONFIRM_MS = 500;      // come in partita: mezzo secondo dopo il terzo tiro
+  const CONFIRM_MS = 500;      // allenamento: mezzo secondo dopo il terzo tiro (in partita dalla 0.5.3 si passa subito)
   let s = null, st = null;     // allenamento aperto e suo stato ricostruito
   let pending = [], mult = 1, confirmT = 0, msg = '', vstate = 'idle', opts = null;
   const dr = () => TR.drill(s.drill);

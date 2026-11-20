@@ -2,7 +2,6 @@
 (function (D) {
   'use strict';
   const A = D.app, esc = D.esc, acts = D.acts, B = D.board, G = D.game;
-  const CONFIRM_MS = 500;      // tiri visibili prima di registrarli (scelta: mezzo secondo)
   const BOT_MS = 900;          // pausa tra i tiri del bot
   let m = null, st = null;     // partita aperta e suo stato ricostruito
   let pending = [];            // tiri del turno in corso
@@ -60,8 +59,9 @@
     pending = ds.slice(0, 3);
     const e = G.turnEnd(st.rem[st.cur], pending, m.cfg.out, opened());
     if (e >= 0) pending = pending.slice(0, e + 1);
-    if (e >= 0 || pending.length === 3) confirmT = setTimeout(commit, CONFIRM_MS);
-    A.render();
+    // turno pieno (3 tiri, chiusura o sballo): si passa subito all'avversario (scelta di 0.5.3, prima mezzo secondo)
+    if (e >= 0 || pending.length === 3) { commit(); return true; }
+    A.render(); return false;
   }
   function commit() {
     clearTimeout(confirmT); confirmT = 0;
@@ -126,8 +126,7 @@
       D.voice.beep(true);
       // frase ancora aperta: resta legata ai suoi tiri; frase finale: i tiri restano e la frase si chiude
       if (key && !final) { if (uKey && uKey !== key) gone[uKey] = 1; uKey = key; uN = r.darts.length; } else unbind();
-      setPending(nd);
-      return confirmT ? 'full' : true;
+      return setPending(nd) ? 'full' : true;
     }
     if (mine) { if (final) unbind(); return false; }        // frase già segnata in parte: si tiene quello che c'è
     if (r.kind === 'ambiguous') {

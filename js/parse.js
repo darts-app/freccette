@@ -51,7 +51,6 @@
       if ((v === 2 || v === 3) && (nx === 'volte' || nx === 'per')) { out.push({ t: 'm', v: v }); i++; continue; }
       if (v === 0 || okNum(v)) {
         const tk = { t: 'n', v: v };
-        if (/^[1-9]{2}$/.test(x) && v <= 19) tk.sp = [+x[0], +x[1]];   // «14» scritto in cifre: forse era «uno, quattro»
         out.push(tk); continue;
       }
       // cifre attaccate: prima in 2 numeri («2016» = 20 e 16), se no in 3 («666» = 6, 6, 6).
@@ -59,7 +58,7 @@
       let op = [];
       if (/^[1-9]{3}$/.test(x)) op = [{ v: [+x[0], +x[1], +x[2]], p: 0 }].concat(splits(x, 2).map((v) => ({ v: v, p: 1 })));
       else if (/^\d+$/.test(x)) op = (splits(x, 2).length ? splits(x, 2) : splits(x, 3)).map((v) => ({ v: v, p: 0 }));
-      out.push(op.length ? { t: 'g', op: op } : { t: 'bad' });
+      out.push(op.length ? { t: 'g', op: op, raw: x } : { t: 'bad' });
     }
     return out;
   }
@@ -116,11 +115,16 @@
   // alts = ipotesi del riconoscitore; ctx = { need: tiri mancanti, ends(tiri) → indice di fine turno o -1, busts(tiri) → è sballo? (facoltativo) }
   // more = testi provvisori della stessa frase (prima che Safari li «aggiusti»): «20 e 5» provvisorio, «25» finale.
   // Si usano solo se la frase finale non dà un turno completo: vince un turno completo o un turno a metà più lungo.
+  // «firma» di una frase: le cifre e i segni in fila, senza spazi. «13», «tredici», «1 3» e «uno tre» hanno la stessa firma:
+  // è la stessa voce raggruppata in modo diverso, e allora vale come la raggruppa Safari nella prima ipotesi.
+  const sigOf = (tk) => tk.map((x) => x.t === 'n' ? String(x.v) : x.t === 'g' ? x.raw : x.t === 'm' ? 'm' + x.v : x.t === 'bull' ? 'b' : x.t === 'miss' ? 'x' : '?').join('');
   function choose(alts, ctx, more) {
     const r = choose1(alts, ctx);
     if (!more || !more.length || r.kind === 'ok' || r.kind === 'cmd' || r.kind === 'ambiguous') return r;
+    const sig0 = alts.length ? sigOf(tokens(alts[0])) : '';
     let best = r;
     for (const t of more) {
+      if (sigOf(tokens(t)) === sig0) continue;              // provvisorio «1 3», finale «13»: vale il finale
       const r2 = choose1([t], ctx);
       if (r2.kind === 'ok' && !r2.darts.pen) return r2;
       if (r2.kind === 'partial' && (best.kind === 'none' || r2.darts.length > best.darts.length)) best = r2;
@@ -132,7 +136,11 @@
     const isFull = (c) => { if (c.length > ctx.need) return false; const e = ctx.ends(c); return e === c.length - 1 || (e === -1 && c.length === ctx.need); };
     // prima le ipotesi con meno parole sconosciute («Proventi…», «Vitro 20…» vanno in fondo); a parità, l'ordine di Safari
     const ps = alts.map((text, i) => ({ p: parse(text), i: i })).sort((a, b) => (a.p.skip - b.p.skip) || (a.i - b.i));
-    for (const { p } of ps) {
+    const sig0 = ps.length && ps[0].p.tk ? sigOf(ps[0].p.tk) : null, ok0 = ps.length && ps[0].p.cands && ps[0].p.cands.length > 0;
+    for (let k = 0; k < ps.length; k++) {
+      const p = ps[k].p;
+      // ipotesi di riserva con le stesse cifre raggruppate diversamente («13» → «1 3»): si ignora, vale la prima
+      if (k > 0 && ok0 && p.tk && sigOf(p.tk) === sig0) continue;
       if (p.cmd) return { kind: 'cmd', cmd: p.cmd };
       const complete = [], seen = {};
       p.cands.slice().sort((a, b) => a.pen - b.pen).forEach((c0) => {
@@ -154,16 +162,7 @@
     }
     if (amb) return { kind: 'ambiguous', options: amb };
     if (!partial) return { kind: 'none' };
-    // turno a metà con un numero in cifre («18 14»): Safari ha attaccato «uno, quattro». Scelta fatta:
-    // si divide l'ultimo numero che completa il turno, senza chiedere (non dopo doppio/triplo).
-    // Solo con almeno 2 tiri detti: «13» da solo resta 13 (prima diventava 1 e 3 se mancavano 2 tiri).
-    if (partial.length >= 2) for (let j = partialTk.length - 1; j >= 0; j--) {
-      const x = partialTk[j];
-      if (!x.sp || (j > 0 && partialTk[j - 1].t === 'm')) continue;
-      const tk2 = partialTk.slice(0, j).concat([{ t: 'n', v: x.sp[0] }, { t: 'n', v: x.sp[1] }], partialTk.slice(j + 1));
-      const full = readings(tk2).filter(isFull);
-      if (full.length) return { kind: 'ok', darts: full[0] };
-    }
+    // (fino alla 0.5.3 qui un numero in cifre si divideva da solo: «20 13» → 20 1 3. Tolto: un numero detto resta quel numero)
     return { kind: 'partial', darts: partial };
   }
   D.parse = { words, tokens, readings, parse, choose };
