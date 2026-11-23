@@ -40,7 +40,7 @@
     for (let i = 0; i < w.length; i++) {
       const x = w[i], nx = w[i + 1];
       if (CMD[x]) { out.push({ t: 'cmd', v: CMD[x] }); continue; }
-      if (x === 'mezzo' && nx === 'centro') { out.push({ t: 'n', v: 25 }); i++; continue; }
+      if (x === 'mezzo' && nx === 'centro') { out.push({ t: 'n', v: 25, word: 1 }); i++; continue; }
       if (MULT[x]) { out.push({ t: 'm', v: MULT[x] }); continue; }
       if (BULL[x]) { out.push({ t: 'bull' }); continue; }
       if (MISS[x]) { out.push({ t: 'miss' }); continue; }
@@ -50,7 +50,7 @@
       if (v === null) { out.skip++; continue; }              // parola di contorno: si ignora
       if ((v === 2 || v === 3) && (nx === 'volte' || nx === 'per')) { out.push({ t: 'm', v: v }); i++; continue; }
       if (v === 0 || okNum(v)) {
-        const tk = { t: 'n', v: v };
+        const tk = { t: 'n', v: v, word: x in NUM };
         out.push(tk); continue;
       }
       // cifre attaccate: prima in 2 numeri («2016» = 20 e 16), se no in 3 («666» = 6, 6, 6).
@@ -97,7 +97,8 @@
       if (x.t === 'n') {
         if (x.v === 0) add([[B.MISS]]);
         else if (x.v === 50) add([[B.dart(25, 2)]]);
-        else if (x.v === 25) add([[B.dart(25, 1)], { d: [B.dart(20, 1), B.dart(5, 1)], p: 1 }]);   // «25» = 25; 20 e 5 solo se non c'è altro
+        else if (x.v === 25) add(x.word ? [[B.dart(25, 1)], { d: [B.dart(20, 1), B.dart(5, 1)], p: 1 }]   // parola «venticinque» = 25
+          : [{ d: [B.dart(20, 1), B.dart(5, 1)], p: 0 }, { d: [B.dart(25, 1)], p: 1 }]);       // cifre «25» = 20 e 5 (Safari unisce «venti, cinque»)
         else add([[B.dart(x.v, 1)]]);
       }
     }
@@ -123,7 +124,7 @@
   // more.hold = { testo provvisorio: ms in cui è rimasto uguale } (lo riempie voce.js). «venticinque» detto di fila passa
   // da «venti» in un attimo, quindi resta 25.
   const HOLD_MS = 200;
-  const MERGED = { 25: [20, 5], 19: [1, 9], 18: [1, 8], 17: [1, 7], 16: [1, 6], 15: [1, 5], 14: [1, 4], 13: [1, 3], 12: [1, 2], 11: [1, 1] };
+  const MERGED = { 20: [2, 0], 10: [1, 0], 25: [20, 5], 19: [1, 9], 18: [1, 8], 17: [1, 7], 16: [1, 6], 15: [1, 5], 14: [1, 4], 13: [1, 3], 12: [1, 2], 11: [1, 1] };
   const MTXT = { 3: 'triplo', 2: 'doppio', 1: 'singolo' };
   const toText = (tk) => tk.map((x) => x.t === 'n' ? String(x.v) : x.t === 'g' ? x.raw : x.t === 'm' ? MTXT[x.v] : x.t === 'bull' ? 'bull' : x.t === 'miss' ? 'fuori' : '').join(' ');
   function resplit(alts, more) {
@@ -139,8 +140,12 @@
     }
     return alts;
   }
+  // numeri che Safari può aver incollato da due parole (11-19, 25): in un testo provvisorio non ci si fida, si aspetta la frase finale
+  // («20 5 1» detto → provvisorio «20 25» → finale «20 51»)
+  const SUSPECT = { 25: 1, 19: 1, 18: 1, 17: 1, 16: 1, 15: 1, 14: 1, 13: 1, 12: 1, 11: 1 };
   function choose(alts, ctx, more) {
     alts = resplit(alts, more);
+    if (ctx.interim && alts.length && tokens(alts[0]).some((x) => x.t === 'n' && !x.word && SUSPECT[x.v])) return { kind: 'none' };
     const r = choose1(alts, ctx);
     if (!more || !more.length || r.kind === 'ok' || r.kind === 'cmd' || r.kind === 'ambiguous') return r;
     const sig0 = alts.length ? sigOf(tokens(alts[0])) : '';

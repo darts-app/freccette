@@ -89,17 +89,18 @@
     });
   }
   let taken = {};              // frasi già segnate con la risposta veloce: la frase finale si ignora
-  function read(alts, more) {
+  function read(alts, more, interim) {
     const x = dr();
     return D.parse.choose(alts, {
       need: 3 - pending.length,
       ends: (c) => { const t = x.turn(st, pending.concat(c)); return t.endAt < 0 ? -1 : t.endAt - pending.length; },
       busts: (c) => x.turn(st, pending.concat(c)).bust,
+      interim: interim,
     }, more);
   }
   function fast(alts, key, part) {
     if (part || taken[key] || A.view !== 'allenamento' || !s || s.done || confirmT) return false;
-    if (read(alts).kind !== 'ok') return false;
+    if (read(alts, undefined, true).kind !== 'ok') return false;
     heard(alts); taken[key] = 1; return 'full';
   }
   function heard(alts, key, more) {

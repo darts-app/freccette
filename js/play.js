@@ -6,6 +6,7 @@
   let m = null, st = null;     // partita aperta e suo stato ricostruito
   let pending = [];            // tiri del turno in corso
   let mult = 1;                // tastiera: 1, 2 (D) o 3 (T) per il prossimo numero
+  const CONFIRM_MS = 1500;     // dopo il terzo tiro (dalla 0.6.1; 0.5.3 era subito)
   let confirmT = 0, botT = 0, busy = false, msg = '', vstate = 'idle', opts = null, lock = null;
   let fixing = false;          // «Correggi turno»: l'ultimo turno è riaperto e aspetta una modifica o «Conferma»
   // voce in diretta: uKey = frase che sta riempiendo il turno, uN = quanti tiri di «pending» vengono da lei
@@ -59,8 +60,8 @@
     pending = ds.slice(0, 3);
     const e = G.turnEnd(st.rem[st.cur], pending, m.cfg.out, opened());
     if (e >= 0) pending = pending.slice(0, e + 1);
-    // turno pieno (3 tiri, chiusura o sballo): si passa subito all'avversario (scelta di 0.5.3, prima mezzo secondo)
-    if (e >= 0 || pending.length === 3) { commit(); return true; }
+    // turno pieno (3 tiri, chiusura o sballo): CONFIRM_MS di attesa (si vede se è giusto, «annulla»/tocco sul tiro correggono), poi avversario
+    if (e >= 0 || pending.length === 3) { confirmT = setTimeout(commit, CONFIRM_MS); A.render(); return true; }
     A.render(); return false;
   }
   function commit() {
@@ -93,12 +94,13 @@
       onError: (err) => { if (err === 'not-allowed' || err === 'service-not-allowed') { vstate = 'denied'; A.render(); } },
     });
   }
-  function read(alts, pend, more) {
+  function read(alts, pend, more, interim) {
     const base = st.rem[st.cur], op = opened();
     return D.parse.choose(alts, {
       need: 3 - pend.length,
       ends: (c) => { const e = G.turnEnd(base, pend.concat(c), m.cfg.out, op); return e < 0 ? -1 : e - pend.length; },
       busts: (c) => G.applyTurn(base, pend.concat(c), m.cfg.out, op).bust,
+      interim: interim,
     }, more);
   }
   // risposta veloce (testo provvisorio fermo): part = false solo turno completo, part = true anche tiri a metà
@@ -110,7 +112,7 @@
     if (confirmT && !mine && !final) return false;
     // la frase che sta già riempiendo il turno si rilegge da capo, dai tiri che c'erano prima di lei
     const pend = mine ? pending.slice(0, pending.length - uN) : fixing ? [] : pending;
-    const r = read(alts, pend, more);
+    const r = read(alts, pend, more, !final);
     if (r.kind === 'cmd') {
       if (!final) return false;
       D.voice.beep(true); unbind();
