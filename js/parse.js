@@ -49,6 +49,9 @@
       else if (/^\d+$/.test(x)) v = parseInt(x, 10);
       if (v === null) { out.skip++; continue; }              // parola di contorno: si ignora
       if ((v === 2 || v === 3) && (nx === 'volte' || nx === 'per')) { out.push({ t: 'm', v: v }); i++; continue; }
+      if (/^0\d+$/.test(x)) {                              // «010», «01»: lo zero davanti è un tiro fuori, non si perde
+        out.push(x.length <= 3 ? { t: 'g', op: [{ v: x.split('').map(Number), p: 0 }], raw: x } : { t: 'bad' }); continue;
+      }
       if (v === 0 || okNum(v)) {
         const tk = { t: 'n', v: v, word: x in NUM };
         out.push(tk); continue;
@@ -97,8 +100,7 @@
       if (x.t === 'n') {
         if (x.v === 0) add([[B.MISS]]);
         else if (x.v === 50) add([[B.dart(25, 2)]]);
-        else if (x.v === 25) add(x.word ? [[B.dart(25, 1)], { d: [B.dart(20, 1), B.dart(5, 1)], p: 1 }]   // parola «venticinque» = 25
-          : [{ d: [B.dart(20, 1), B.dart(5, 1)], p: 0 }, { d: [B.dart(25, 1)], p: 1 }]);       // cifre «25» = 20 e 5 (Safari unisce «venti, cinque»)
+        else if (x.v === 25) add([[B.dart(25, 1)], { d: [B.dart(20, 1), B.dart(5, 1)], p: 1 }]);   // «25» = 25; 20 e 5 solo se i tempi dicono due parole (resplit) o non c'è altro
         else add([[B.dart(x.v, 1)]]);
       }
     }
@@ -140,12 +142,8 @@
     }
     return alts;
   }
-  // numeri che Safari può aver incollato da due parole (11-19, 25): in un testo provvisorio non ci si fida, si aspetta la frase finale
-  // («20 5 1» detto → provvisorio «20 25» → finale «20 51»)
-  const SUSPECT = { 25: 1, 19: 1, 18: 1, 17: 1, 16: 1, 15: 1, 14: 1, 13: 1, 12: 1, 11: 1 };
   function choose(alts, ctx, more) {
     alts = resplit(alts, more);
-    if (ctx.interim && alts.length && tokens(alts[0]).some((x) => x.t === 'n' && !x.word && SUSPECT[x.v])) return { kind: 'none' };
     const r = choose1(alts, ctx);
     if (!more || !more.length || r.kind === 'ok' || r.kind === 'cmd' || r.kind === 'ambiguous') return r;
     const sig0 = alts.length ? sigOf(tokens(alts[0])) : '';

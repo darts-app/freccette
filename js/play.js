@@ -6,7 +6,7 @@
   let m = null, st = null;     // partita aperta e suo stato ricostruito
   let pending = [];            // tiri del turno in corso
   let mult = 1;                // tastiera: 1, 2 (D) o 3 (T) per il prossimo numero
-  const CONFIRM_MS = 1500;     // dopo il terzo tiro (dalla 0.6.1; 0.5.3 era subito)
+  const CONFIRM_MS = 2000;     // dopo il terzo tiro i tiri si vedono subito, il cambio turno aspetta (0.6.3); la frase finale di Safari (~1,7 s) può ancora correggerli
   let confirmT = 0, botT = 0, busy = false, msg = '', vstate = 'idle', opts = null, lock = null;
   let fixing = false;          // «Correggi turno»: l'ultimo turno è riaperto e aspetta una modifica o «Conferma»
   // voce in diretta: uKey = frase che sta riempiendo il turno, uN = quanti tiri di «pending» vengono da lei

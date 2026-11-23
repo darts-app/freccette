@@ -23,7 +23,7 @@
     ['bull 20 1', 'ok:Bull 20 1'],
     ['mezzo centro 20 20', 'ok:25 20 20'],
     ['venticinque cinque', 'partial:25 5'],                // «25» vale 25 (prima era 20 e 5)
-    ['25', 'partial:20 5'],            // cifre «25» = 20 e 5 (dalla 0.6.1); la parola «venticinque» = 25
+    ['25', 'partial:25'],
     ['venticinque', 'partial:25'],
     ['fuori fuori fuori', 'ok:0 0 0'],
     ['zero, zero, venti', 'ok:0 0 20'],
@@ -135,10 +135,9 @@
   T.eq(P('bull bull bull'), 'ok:Bull Bull Bull', '«bull bull bull»');
   T.eq(P('zero zero zero'), 'ok:0 0 0', '«zero zero zero»');
   // «25» = 25: mai più 20 e 5 se il 25 ha senso (anche a metà frase, con la risposta veloce)
-  T.eq(P('venticinque 20'), 'partial:25 20', '«venticinque 20» = 25 e 20');
-  T.eq(P('25 20'), 'ok:20 5 20', '«25 20» in cifre = 20 5 20');
+  T.eq(P('25 20'), 'partial:25 20', '«25 20» = 25 e 20, manca il terzo (non 20 5 20)');
   T.eq(P('venticinque venti venti'), 'ok:25 20 20', '«venticinque venti venti»');
-  T.eq(P('20 25'), 'ok:20 20 5', '«20 25» in cifre = 20 20 5');
+  T.eq(P('20 25'), 'partial:20 25', '«20 25» = 20 e 25');
   T.eq(P('doppio 25 venti'), 'partial:Bull 20', '«doppio 25» = bull');
   T.eq(P('triplo 25'), 'partial:T20 5', '«triplo 25» resta T20 e 5 (il T25 non esiste)');
   T.eq(P('25 25 25'), 'ok:25 25 25', '«25 25 25»');
@@ -161,29 +160,27 @@
   const Q = (alts, more, c) => { const r = D.parse.choose(alts, c || ctx(3), more); return r.kind + (r.darts ? ':' + S(r.darts) : ''); };
   T.eq(Q(['25'], ['20', '20 e 5'], ctx(2)), 'ok:20 5', 'finale «25», provvisorio «20 e 5», mancano 2 = 20 e 5');
   T.eq(Q(['25'], ['20', '20 e 5']), 'partial:20 5', 'finale «25», provvisorio «20 e 5», mancano 3 = 20 e 5');
-  T.eq(Q(['25'], ['venti', '25']), 'partial:20 5', '«venticinque» detto di fila resta 25');
-  T.eq(Q(['25'], []), 'partial:20 5', 'senza provvisori: «25» = 20 5');
+  T.eq(Q(['25'], ['venti', '25']), 'partial:25', '«venticinque» detto di fila resta 25');
+  T.eq(Q(['25'], []), 'partial:25', 'senza provvisori: 25');
   T.eq(Q(['13'], ['1', '1 3'], ctx(2)), 'partial:13', 'finale «13», provvisorio «1 3»: vale 13');
   T.eq(Q(['triplo 20 5 doppio 16'], ['triplo 20']), 'ok:T20 5 D16', 'il finale completo vince sempre');
   // quarta prova: Safari unisce «venti, cinque» → «25», «uno, tre» → «13»; il primo pezzo fermo ≥ 200 ms = erano due tiri
   const H = (alts, hold, c) => { const m = Object.keys(hold); m.hold = hold; const r = D.parse.choose(alts, c || ctx(3), m); return r.kind + (r.darts ? ':' + S(r.darts) : ''); };
   T.group('voce unita da Safari');
   T.eq(H(['25'], { '20': 400, '25': 100 }), 'partial:20 5', '«venti» fermo 400 ms poi «25» = 20 e 5');
-  T.eq(H(['25'], { '20': 80, '25': 100 }), 'partial:20 5', '«venti» solo 80 ms = «venticinque» di fila = 25');
-  T.eq(H(['25'], { '25': 300 }), 'partial:20 5', 'senza «20» prima = 25');
+  T.eq(H(['25'], { '20': 80, '25': 100 }), 'partial:25', '«venti» solo 80 ms = «venticinque» di fila = 25');
+  T.eq(H(['25'], { '25': 300 }), 'partial:25', 'senza «20» prima = 25');
   T.eq(H(['13'], { '1': 350, '13': 50 }, ctx(2)), 'ok:1 3', '«1» fermo poi «13» = 1 e 3');
   T.eq(H(['13'], { '3': 350, '13': 50 }, ctx(2)), 'partial:13', 'prima «3» (non «1») = 13');
-  T.eq(H(['triplo 20 25'], { 'triplo 20': 500, 'triplo 20 25': 50 }), 'ok:T20 20 5', '«triplo 20» poi «25»: il 25 non si divide (primo pezzo = 20 ma non «triplo 20 20»)');
+  T.eq(H(['triplo 20 25'], { 'triplo 20': 500, 'triplo 20 25': 50 }), 'partial:T20 25', '«triplo 20» poi «25»: il 25 non si divide (primo pezzo = 20 ma non «triplo 20 20»)');
   T.eq(H(['20 13'], { '20 1': 300, '20 13': 50 }), 'ok:20 1 3', 'a metà frase: «20 1» fermo poi «13» = 1 e 3');
   // 5ª prova (2026-11-23): «uno, zero» → «10», «due, zero» → «20»; «20 5 1» → provvisorio «20 25», finale «20 51»
   T.eq(H(['10'], { '1': 250, '10': 100 }), 'partial:1 0', '«uno» fermo poi «10» = 1 e 0');
   T.eq(H(['20'], { '2': 300, '20': 100 }), 'partial:2 0', '«due» fermo poi «20» = 2 e 0');
   T.eq(H(['20'], { '20': 100 }), 'partial:20', '«20» subito = 20');
-  const I = (alts) => { const r = D.parse.choose(alts, Object.assign({ interim: true }, ctx(3))); return r.kind + (r.darts ? ':' + S(r.darts) : ''); };
-  T.eq(I(['20 25']), 'none', 'provvisorio «20 25»: non ci si fida, si aspetta il finale');
-  T.eq(I(['13']), 'none', 'provvisorio «13»: si aspetta il finale');
-  T.eq(I(['20 20 5']), 'ok:20 20 5', 'provvisorio senza numeri sospetti: vale');
   T.eq(Q(['20 51']), 'ok:20 5 1', 'finale «20 51» = 20 5 1');
+  T.eq(P('010'), 'ok:0 1 0', '«010» = 0 1 0 (lo zero davanti non si perde)');
+  T.eq(P('01'), 'partial:0 1', '«01» = 0 1');
   T.eq(H(['doppio 13'], { 'doppio 1': 500 }), 'partial:D13', '«doppio 13» è un tiro solo');
   T.eq(P('111', ctx(2)), 'ambiguous:1 11|11 1', 'mancano 2 tiri: «111» chiede');
   T.eq(P(['111', '1 1 1']), 'ok:1 1 1', '«111 | 1 1 1»');
