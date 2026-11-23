@@ -224,10 +224,20 @@
   D.views.storico = function () {
     let h = top('Storico');
     h += '<div class="row2"><button class="btn ghost" data-act="backup">Salva backup</button><button class="btn ghost" data-act="restore">Ripristina</button></div>';
+    h += '<button class="btn ghost" data-act="vlog">Copia registro voce</button>';
     const ms = A.data.matches.slice().reverse();
     if (!ms.length) h += '<p class="muted">Le partite giocate compaiono qui.</p>';
     h += ms.map((m) => `<button class="card mrow" data-act="det" data-id="${m.id}"><span class="when">${fmt(m.created)}${m.done ? '' : ' · <em>in corso</em>'}</span><b>${score(m)}</b><span>${title(m)}</span></button>`).join('');
     return h;
+  };
+  // registro delle ultime frasi dette (come le ha sentite Safari, con i tempi): da incollare a Claude per migliorare la voce
+  acts.vlog = () => {
+    let t = '';
+    try { t = JSON.parse(localStorage.getItem('freccette.voicelog') || '[]').map((x) => x.at + ' | ' + x.final.join(' / ') + ' | prima: ' + (x.interim || '-')).join('\n'); } catch (e) { /* vuoto */ }
+    if (!t) { A.toast('Registro vuoto'); return; }
+    const ok = () => A.toast('Registro copiato');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, () => A.sheet('<b class="stitle">Registro voce</b><textarea rows="10" style="width:100%">' + t.replace(/</g, '&lt;') + '</textarea>'));
+    else A.sheet('<b class="stitle">Registro voce</b><textarea rows="10" style="width:100%">' + t.replace(/</g, '&lt;') + '</textarea>');
   };
   acts.det = (el) => A.go('dettaglio', el.dataset.id);
   D.views.dettaglio = function () {

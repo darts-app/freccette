@@ -7,7 +7,9 @@
   // resta uguale per FAST_MS si prova a segnarlo come turno completo; se resta uguale per PART_MS anche un tiro solo.
   // h.fast(alts, key, part) segna i tiri e dice 'full' se il turno è pieno. La frase finale (stessa key) può correggerli.
   const FAST_MS = 350, PART_MS = 650;
-  let sess = 0, fastT = 0, partT = 0, fastKey = '', fastText = '', hist = {};
+  let sess = 0, fastT = 0, partT = 0, fastKey = '', fastText = '', hist = {}, tl = {};
+  // tl[key] = come è andata la frase: [testo provvisorio, ms in cui è rimasto uguale]; serve a capire se «20 e 5» era un numero o due tiri
+  const LOGMAX = 40;
   const emit = (s) => { if (h.onState) h.onState(s); };
   function supported() { return !!SR; }
   function make() {
@@ -20,8 +22,9 @@
         for (let j = 0; j < res.length; j++) alts.push(res[j].transcript);
         if (!res.isFinal) { if (h.fast) interim(alts, key); continue; }
         if (fastKey === key) { clearTimeout(fastT); clearTimeout(partT); fastKey = ''; }
-        const more = hist[key] || [];
-        delete hist[key];
+        const more = moreOf(key, true);
+        note(alts, key);
+        delete hist[key]; delete tl[key];
         if (h.onResult) h.onResult(alts, key, more);
       }
     };
@@ -40,15 +43,35 @@
     };
     return r;
   }
+  // provvisori della frase + quanto è rimasto fermo ciascuno (more.hold); end = la frase è finita adesso
+  function moreOf(key, end) {
+    const hk = (hist[key] || []).slice(), t = tl[key] || [], hold = {};
+    if (end && t.length) t[t.length - 1][1] = Date.now() - t[t.length - 1][2];
+    t.forEach((x) => { hold[x[0]] = Math.max(hold[x[0]] || 0, x[1]); });
+    hk.hold = hold;
+    return hk;
+  }
+  // registro delle ultime frasi (si copia dalle Impostazioni): serve a capire come Safari divide e unisce i numeri
+  function note(alts, key) {
+    try {
+      const t = (tl[key] || []).map((x) => x[0] + ' [' + x[1] + 'ms]').join(' > ');
+      const L = JSON.parse(localStorage.getItem('freccette.voicelog') || '[]');
+      L.push({ at: new Date().toISOString().slice(11, 19), final: alts, interim: t });
+      localStorage.setItem('freccette.voicelog', JSON.stringify(L.slice(-LOGMAX)));
+    } catch (e) { /* senza registro si gioca lo stesso */ }
+  }
   function interim(alts, key) {
     const text = (alts[0] || '').trim();
     if (!text || (key === fastKey && text === fastText)) return;
     const hk = hist[key] || (hist[key] = []);
     if (hk.indexOf(text) < 0) hk.push(text);
+    const now = Date.now(), tk = tl[key] || (tl[key] = []);
+    if (tk.length) tk[tk.length - 1][1] = now - tk[tk.length - 1][2];
+    tk.push([text, 0, now]);
     clearTimeout(fastT); clearTimeout(partT); fastKey = key; fastText = text;
     const go = (part) => {
       if (fastKey !== key || fastText !== text || !h.fast) return;
-      const r = h.fast(alts, key, part);
+      const r = h.fast(alts, key, part, moreOf(key, false));
       if (r === 'full') { fastKey = ''; clearTimeout(partT); if (mode === 'tap') stop(); }   // un tocco: il microfono si libera subito
     };
     fastT = setTimeout(() => go(false), FAST_MS);
@@ -63,7 +86,7 @@
     try { rec = make(); rec.start(); startedAt = Date.now(); emit('listening'); return true; } catch (e) { rec = null; emit('paused'); return false; }
   }
   function stop() {
-    want = false; clearTimeout(fastT); clearTimeout(partT); fastKey = ''; hist = {};
+    want = false; clearTimeout(fastT); clearTimeout(partT); fastKey = ''; hist = {}; tl = {};
     if (rec) { const r = rec; rec = null; try { r.abort(); } catch (e) { /* già fermo */ } }
     emit('idle');
   }

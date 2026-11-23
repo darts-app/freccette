@@ -102,7 +102,7 @@
     }, more);
   }
   // risposta veloce (testo provvisorio fermo): part = false solo turno completo, part = true anche tiri a metà
-  function fast(alts, key, part) { return hear(alts, key, false, part, null); }
+  function fast(alts, key, part, more) { return hear(alts, key, false, part, more); }
   function heard(alts, key, more) { hear(alts, key, true, true, more); }
   function hear(alts, key, final, part, more) {
     if (A.view !== 'partita' || busy || st.done || (key && gone[key])) return false;

@@ -118,7 +118,29 @@
   // «firma» di una frase: le cifre e i segni in fila, senza spazi. «13», «tredici», «1 3» e «uno tre» hanno la stessa firma:
   // è la stessa voce raggruppata in modo diverso, e allora vale come la raggruppa Safari nella prima ipotesi.
   const sigOf = (tk) => tk.map((x) => x.t === 'n' ? String(x.v) : x.t === 'g' ? x.raw : x.t === 'm' ? 'm' + x.v : x.t === 'bull' ? 'b' : x.t === 'miss' ? 'x' : '?').join('');
+  // Safari unisce due tiri detti in fretta: «venti, cinque» → «25», «uno, tre» → «13». Se nello stesso ascolto il primo pezzo
+  // (20, 1) era già apparso da solo e c'è rimasto almeno HOLD_MS prima che il testo cambiasse, erano due tiri, non un numero.
+  // more.hold = { testo provvisorio: ms in cui è rimasto uguale } (lo riempie voce.js). «venticinque» detto di fila passa
+  // da «venti» in un attimo, quindi resta 25.
+  const HOLD_MS = 200;
+  const MERGED = { 25: [20, 5], 19: [1, 9], 18: [1, 8], 17: [1, 7], 16: [1, 6], 15: [1, 5], 14: [1, 4], 13: [1, 3], 12: [1, 2], 11: [1, 1] };
+  const MTXT = { 3: 'triplo', 2: 'doppio', 1: 'singolo' };
+  const toText = (tk) => tk.map((x) => x.t === 'n' ? String(x.v) : x.t === 'g' ? x.raw : x.t === 'm' ? MTXT[x.v] : x.t === 'bull' ? 'bull' : x.t === 'miss' ? 'fuori' : '').join(' ');
+  function resplit(alts, more) {
+    if (!alts.length || !more || !more.hold) return alts;
+    const tk = tokens(alts[0]), held = {};
+    Object.keys(more.hold).forEach((t) => { if (more.hold[t] >= HOLD_MS) held[sigOf(tokens(t))] = 1; });
+    for (let i = 0; i < tk.length; i++) {
+      const sp = tk[i].t === 'n' && MERGED[tk[i].v];
+      if (!sp || (i > 0 && tk[i - 1].t === 'm')) continue;       // «doppio 13» è un tiro solo
+      if (!held[sigOf(tk.slice(0, i).concat({ t: 'n', v: sp[0] }))]) continue;
+      const nt = tk.slice(0, i).concat({ t: 'n', v: sp[0] }, { t: 'n', v: sp[1] }, tk.slice(i + 1));
+      return [toText(nt)].concat(alts);
+    }
+    return alts;
+  }
   function choose(alts, ctx, more) {
+    alts = resplit(alts, more);
     const r = choose1(alts, ctx);
     if (!more || !more.length || r.kind === 'ok' || r.kind === 'cmd' || r.kind === 'ambiguous') return r;
     const sig0 = alts.length ? sigOf(tokens(alts[0])) : '';

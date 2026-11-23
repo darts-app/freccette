@@ -163,6 +163,17 @@
   T.eq(Q(['25'], []), 'partial:25', 'senza provvisori: 25');
   T.eq(Q(['13'], ['1', '1 3'], ctx(2)), 'partial:13', 'finale «13», provvisorio «1 3»: vale 13');
   T.eq(Q(['triplo 20 5 doppio 16'], ['triplo 20']), 'ok:T20 5 D16', 'il finale completo vince sempre');
+  // quarta prova: Safari unisce «venti, cinque» → «25», «uno, tre» → «13»; il primo pezzo fermo ≥ 200 ms = erano due tiri
+  const H = (alts, hold, c) => { const m = Object.keys(hold); m.hold = hold; const r = D.parse.choose(alts, c || ctx(3), m); return r.kind + (r.darts ? ':' + S(r.darts) : ''); };
+  T.group('voce unita da Safari');
+  T.eq(H(['25'], { '20': 400, '25': 100 }), 'partial:20 5', '«venti» fermo 400 ms poi «25» = 20 e 5');
+  T.eq(H(['25'], { '20': 80, '25': 100 }), 'partial:25', '«venti» solo 80 ms = «venticinque» di fila = 25');
+  T.eq(H(['25'], { '25': 300 }), 'partial:25', 'senza «20» prima = 25');
+  T.eq(H(['13'], { '1': 350, '13': 50 }, ctx(2)), 'ok:1 3', '«1» fermo poi «13» = 1 e 3');
+  T.eq(H(['13'], { '3': 350, '13': 50 }, ctx(2)), 'partial:13', 'prima «3» (non «1») = 13');
+  T.eq(H(['triplo 20 25'], { 'triplo 20': 500, 'triplo 20 25': 50 }), 'partial:T20 25', '«triplo 20» poi «25»: il 25 non si divide (primo pezzo = 20 ma non «triplo 20 20»)');
+  T.eq(H(['20 13'], { '20 1': 300, '20 13': 50 }), 'ok:20 1 3', 'a metà frase: «20 1» fermo poi «13» = 1 e 3');
+  T.eq(H(['doppio 13'], { 'doppio 1': 500 }), 'partial:D13', '«doppio 13» è un tiro solo');
   T.eq(P('111', ctx(2)), 'ambiguous:1 11|11 1', 'mancano 2 tiri: «111» chiede');
   T.eq(P(['111', '1 1 1']), 'ok:1 1 1', '«111 | 1 1 1»');
 })();
